@@ -23,7 +23,7 @@ export const previously = (slug) => {
   const idea = store.readJson(path.join(d, "ideas.json"))?.ideas?.[s.pick ?? 0] ?? {};
   const lines = (store.readJson(path.join(d, "lines.json")) ?? []).map((l) => l.text);
   const title = s.title ?? idea.title ?? s.topic;
-  return { slug, episode: s.series?.episode ?? 1, title, seriesTitle: s.series?.title ?? title, premise: idea.premise ?? s.topic, lines, style: s.style, format: s.format, length: s.length, output: s.output };
+  return { slug, episode: s.series?.episode ?? 1, title, seriesTitle: s.series?.title ?? title, premise: idea.premise ?? s.topic, lines, style: s.style, format: s.format, length: s.length, output: s.output, cast: s.cast ?? null };
 };
 
 // The brief both prompts quote. Kept short: the hook and the ending carry the story; the middle is skipped.
@@ -44,6 +44,8 @@ export const createSequel = (parentSlug, { mode, length, format } = {}) => {
     output: prev.output ?? undefined,
     mode,
     series,
+    // same characters and place as the last episode (old projects without a cast get a new one)
+    ...(prev.cast ? { cast: prev.cast, castMode: "manual" } : {}),
   });
 };
 

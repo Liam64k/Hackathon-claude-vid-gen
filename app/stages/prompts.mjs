@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { APP, EPISODES } from "../lib/paths.mjs";
 import { FORMATS, STYLES, clampSeconds, lineRange, wordRange } from "../lib/store.mjs";
-import { describeLook } from "../lib/cast-data.mjs";
+import { describeLook, pickTheme, themeParticles } from "../lib/cast-data.mjs";
 import { SPARK } from "../ui/spark-words.js";
 
 // Every stage prompt starts with this (the studio CLAUDE.md says "stop for approval"; the app does that).
@@ -140,10 +140,14 @@ export const castText = (p) => {
   const who = (k, r) => c[k] ? `${r} = ${c[k].name} (${describeLook(c[k].look)})` : "";
   return `CAST (fixed for this episode; use these names, not new ones): ${[who("lead", "the lead, figure id \"eli\""), who("second", "the second, figure id \"brother\"")].filter(Boolean).join("; ")}.`;
 };
+// "auto" place looks are worked out from the topic (same rule as lib/castfile.mjs).
 export const placeText = (p) => {
-  const t = THEME_PLACE[p?.cast?.theme];
+  if (!p?.cast) return "";
+  const id = p.cast.theme && p.cast.theme !== "auto" ? p.cast.theme : pickTheme(`${p.topic ?? ""} ${p.title ?? ""}`);
+  const t = THEME_PLACE[id];
   if (!t) return "";
-  return `PLACE: theme "${t[0]}" — the art is recoloured so ${t[1]}. Write and frame the place this way${p.cast.particles ? `; particles: ${p.cast.particles}` : ""}.`;
+  const particles = p.cast.particles && p.cast.particles !== "auto" ? p.cast.particles : themeParticles(id);
+  return `PLACE: theme "${t[0]}" — the art is recoloured so ${t[1]}. Write and frame the place this way; particles: ${particles}.`;
 };
 // "Setting dice": two random scenario/place sparks per run (optional inspiration).
 export const settingDice = (rnd = Math.random) => [shuffle(SPARK.scenario, rnd)[0], shuffle(SPARK.place, rnd)[0]];

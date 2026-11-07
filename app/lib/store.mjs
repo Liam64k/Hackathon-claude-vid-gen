@@ -113,7 +113,7 @@ export const createProject = ({ topic, surprise, format = "story", length = 90, 
   let n = 2;
   while (existsSync(episodeDir(slug))) slug = `${base}-${stamp()}-${n++}`;
   const picked = cast ? normalizeCast(cast) : null;
-  const mode = CAST_MODES.includes(castMode) ? castMode : picked && !picked.errors.length ? "manual" : "random";
+  const cMode = CAST_MODES.includes(castMode) ? castMode : picked && !picked.errors.length ? "manual" : "random";
   const castState = picked && !picked.errors.length ? picked.cast : { ...randomCast(slug), theme: "auto", particles: "auto" };
   if (theme && castState.theme === "auto") castState.theme = normalizeCast({ ...castState, theme }).cast.theme;
   const state = {
@@ -135,7 +135,7 @@ export const createProject = ({ topic, surprise, format = "story", length = 90, 
     updatedAt: new Date().toISOString(),
     pick: null,
     cast: castState,
-    castMode: mode,
+    castMode: cMode,
     voice: { voiceId: null, provider: normalizeVoiceProvider(voice?.provider), model: null, credit: false },
     stages: Object.fromEntries(STAGES.map((s) => [s, blankStage()])),
   };

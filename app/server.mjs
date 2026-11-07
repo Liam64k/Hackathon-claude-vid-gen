@@ -27,6 +27,9 @@ import * as boards from "./lib/boards.mjs";
 import { weave, pickWeaveAngle } from "./stages/weave.mjs";
 import { hooks } from "./stages/hooks.mjs";
 import { createSequel } from "./stages/sequel.mjs";
+import { castData, normalizeCast, randomCast } from "./lib/cast-data.mjs";
+import { resolveCast, syncCast } from "./lib/castfile.mjs";
+import { castWithClaude } from "./stages/cast.mjs";
 import { safetyIssues, loadShots, catalogScenes } from "./lib/validate.mjs";
 import { buildShotsFile, editsFile, ensureRawShots, rawFile, timingFor, validateEdits } from "./lib/edits.mjs";
 
@@ -147,6 +150,7 @@ const projectDetail = (slug) => {
   return {
     state: s,
     current: store.currentStage(s),
+    castResolved: resolveCast(s), // theme/particles with "auto" worked out from the topic
     ideas: store.readJson(path.join(d, "ideas.json"))?.ideas ?? null,
     lines: store.readJson(path.join(d, "lines.json")),
     scriptMd: readText(path.join(d, "script.md")),
@@ -208,6 +212,33 @@ const assets = () => {
   return { images, clips: clips.map((p, i) => ({ path: p, text: lines[i]?.text ?? "" })), pack: { id: "winter-lake", name: "Winter Lake", scenes: ["lakeSide", "lakeCut", "lakeTop", "lakePrint"], cast: ["the lead", "the second"] } };
 };
 
+// ---- cast ------------------------------------------------------------------------------------------
+// A cast from a request body: validated against the cast lists, names checked for safety. null = none sent.
+const castFromBody = (raw) => {
+  if (raw == null) return null;
+  const { cast, errors } = normalizeCast(raw, safetyIssues);
+  if (errors.length) throw httpError(400, `Fix the cast first: ${errors[0]}`, { errors });
+  return cast;
+};
+
+// "Let Claude cast it": one small Claude run that picks two characters and the place look for the story.
+// Keeps the user's place look when they chose one by hand. Never throws: a failure keeps the current cast.
+const claudeCast = async (slug) => {
+  const s = store.load(slug);
+  const idea = store.readJson(path.join(episodeDir(slug), "ideas.json"))?.ideas?.[s.pick ?? 0] ?? null;
+  const lines = (store.readJson(path.join(episodeDir(slug), "lines.json")) ?? []).map((l) => l.text);
+  bus.send("activity", { slug, stage: "script", text: "Claude is casting the characters and the place", tool: "cast" });
+  const got = await castWithClaude({ topic: s.title || s.topic, idea: idea && { title: idea.title, premise: idea.premise, world: idea.world }, lines }, { mode: MODE, seed: slug });
+  const { why, replay, fallback, ...cast } = got;
+  store.update(slug, (x) => {
+    const keepTheme = x.cast?.theme && x.cast.theme !== "auto" && x.castMode !== "claude";
+    x.cast = { ...cast, ...(keepTheme ? { theme: x.cast.theme, particles: x.cast.particles } : {}) };
+  });
+  syncCast(slug);
+  bus.send("activity", { slug, stage: "script", text: `Cast: ${cast.lead.name} and ${cast.second.name}${why ? ` (${why})` : ""}`, tool: "cast" });
+  return { cast: store.load(slug).cast, why: why ?? null, replay: !!replay, fallback: !!fallback };
+};
+
 // ---- routes ----------------------------------------------------------------------------------------
 const approve = async (slug, stage, body) => {
   const s = store.load(slug);
@@ -232,8 +263,12 @@ const approve = async (slug, stage, body) => {
   store.update(slug, (x) => (x.stages[stage].status = "approved"));
   bus.send("stage", { slug, stage, status: "approved" });
   const next = { ideas: "script", script: "shots", voice: "render" }[stage];
+  const startNext = () => { try { startStage(slug, next, {}); } catch (e) { bus.send("error", { slug, stage: next, code: "start", message: e.message }); } };
   if (next && body.next !== false) {
-    try { startStage(slug, next, {}); } catch (e) { bus.send("error", { slug, stage: next, code: "start", message: e.message }); }
+    // castMode "claude": cast first so the script uses the names, but never block the pipeline on it
+    if (stage === "ideas" && s.castMode === "claude" && s.cast) {
+      claudeCast(slug).catch((e) => bus.send("activity", { slug, stage: "script", text: `Casting skipped (${e.message}); keeping the current cast.`, level: "warn" })).finally(startNext);
+    } else startNext();
   }
   return projectDetail(slug);
 };
@@ -282,7 +317,8 @@ const routes = async (req, res, url) => {
     }
   }
 
-  if (p === "/api/options" && m === "GET") return json(res, 200, { styles: store.STYLES, presets: store.OUTPUT_PRESETS, ratios: store.RATIOS, length: { min: store.MIN_SECONDS, max: store.MAX_SECONDS, presets: store.PRESET_LENGTHS }, scenes: catalogScenes() });
+  if (p === "/api/options" && m === "GET") return json(res, 200, { styles: store.STYLES, presets: store.OUTPUT_PRESETS, ratios: store.RATIOS, length: { min: store.MIN_SECONDS, max: store.MAX_SECONDS, presets: store.PRESET_LENGTHS }, scenes: catalogScenes(), castData: castData() });
+  if (p === "/api/cast/random" && m === "GET") return json(res, 200, { cast: randomCast(url.searchParams.get("seed") || Math.random().toString(36)) });
 
   // ---- inspiration boards ----
   if (p === "/api/boards" && m === "GET") return json(res, 200, { boards: boards.list() });
@@ -316,7 +352,8 @@ const routes = async (req, res, url) => {
       assertIdle();
       const topic = `${story.title}: ${story.logline}`.slice(0, 300);
       const seed = `${topic}\n${story.beats.map((x, i) => `${i + 1}. ${x.part}: ${x.text}`).join("\n")}`;
-      const s = store.createProject({ topic, format: b.format, length: b.length, style: b.style, output: b.output, seed, mode: MODE });
+      const s = store.createProject({ topic, format: b.format, length: b.length, style: b.style, output: b.output, seed, mode: MODE, cast: castFromBody(b.cast), castMode: b.castMode });
+      syncCast(s.slug);
       bus.send("project", { slug: s.slug });
       startStage(s.slug, "ideas", {});
       return json(res, 201, projectDetail(s.slug));
@@ -334,7 +371,9 @@ const routes = async (req, res, url) => {
       const bad = unsafeTopic(topic);
       if (bad) throw bad;
     }
-    const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry, voice: b.voice });
+    const cast = castFromBody(b.cast);
+    const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry, voice: b.voice, cast, castMode: b.castMode });
+    syncCast(s.slug);
     bus.send("project", { slug: s.slug });
     if (s.entry === "own") {
       script.seedOwnProject(s.slug, topic);
@@ -351,9 +390,28 @@ const routes = async (req, res, url) => {
     assertIdle();
     const b = await readBody(req);
     const s = createSequel(mm[1], { mode: MODE, length: b.length, format: b.format });
+    syncCast(s.slug);
     bus.send("project", { slug: s.slug });
     startStage(s.slug, "ideas", {});
     return json(res, 201, projectDetail(s.slug));
+  }
+  if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/cast$/.exec(p)) && (m === "PUT" || m === "POST")) {
+    const slug = mm[1];
+    if (!store.load(slug)) return fail(res, 404, "No such project");
+    if (current()?.slug === slug) throw httpError(409, "Wait for the running step to finish.");
+    const b = await readBody(req);
+    const cast = castFromBody(b.cast);
+    if (!cast) return fail(res, 400, "Send a cast.");
+    store.update(slug, (x) => { x.cast = cast; x.castMode = ["random", "manual", "claude"].includes(b.castMode) ? b.castMode : "manual"; });
+    syncCast(slug);
+    return json(res, 200, projectDetail(slug));
+  }
+  if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/cast\/claude$/.exec(p)) && m === "POST") {
+    const slug = mm[1];
+    if (!store.load(slug)) return fail(res, 404, "No such project");
+    assertIdle();
+    store.update(slug, (x) => (x.castMode = "claude"));
+    return json(res, 200, { ...(await claudeCast(slug)), detail: projectDetail(slug) });
   }
   if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/hooks$/.exec(p)) && m === "POST") {
     const slug = mm[1];
