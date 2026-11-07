@@ -1,0 +1,64 @@
+{
+  "facts": [
+    {
+      "claim": "1. Falling-through rescue: call 911, then reach or throw something; do not go out to them yourself (STEP 1 CALL, STEP 2 REACH/THROW, STEP 3 DON'T GO).",
+      "verdict": "adjust",
+      "note": "Substance matches Minnesota DNR and American Red Cross 'call 911, reach, throw, don't go' guidance. I could not load the live page in this session, so confirm the exact wording and order. Safety flag: the official line is to reach or throw from the shore or from solid ice. Line 12 has Eli crawling out toward the hole, which reads as 'going'. Add a qualifier (stay on solid ice, only creep out if you can't throw) or have him stay on firm ice and throw or slide something to his brother. Keep the 911 call first.",
+      "source": "https://www.dnr.state.mn.us/safety/ice/index.html"
+    },
+    {
+      "claim": "2. 1-10-1: about 1 minute of cold shock (gasping), about 10 minutes of useful movement, up to 1 hour before passing out from hypothermia.",
+      "verdict": "confirmed",
+      "note": "Matches the National Center for Cold Water Safety (Giesbrecht research). Keep 'about' for 1 and 10 and 'up to' for the hour. The 1 minute is the time to get breathing under control, so say 'about one minute to control your breathing' or 'gasping' only. The 10-minute window applies to cold water in general, not ice-specific.",
+      "source": "https://www.coldwatersafety.org/1-10-1"
+    },
+    {
+      "claim": "3. A rescuer near weak ice should lie flat to spread their weight instead of standing.",
+      "verdict": "adjust",
+      "note": "'Lie flat / spread your weight' is standard in Red Cross and Coast Guard ice-rescue advice and in DNR self-rescue steps. The DNR's main rescue message is to stay off the ice and reach or throw. Cite a second source, and do not present crawling out to the hole as the recommended first move.",
+      "source": "https://www.dnr.state.mn.us/safety/ice/index.html ; https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/winter-storm.html"
+    },
+    {
+      "claim": "4. Pushing your own ice picks across the ice 'on their cord' counts as a reach/throw object; Eli stops about 6 m short.",
+      "verdict": "adjust",
+      "note": "Ice picks are an accepted self-rescue tool, but I found no official source listing them as a rescue device for others. The cord is only about a meter long, so 'on their cord' does not reach 6 m. Reword to 'slid my ice picks across the ice to him' and drop the cord detail, or lengthen the 6 m only if an object really can slide that far. A throw bag or rope, if available, is the official-style option. Also say outright that the picks are a stopgap. Flag the 6 m figure for verification.",
+      "source": "https://www.dnr.state.mn.us/safety/ice/index.html"
+    },
+    {
+      "claim": "5. Self-rescue: face the way you came, arms on unbroken ice, kick legs up flat, dig in picks and pull, slide out on your stomach, don't stand, roll away back along your own tracks.",
+      "verdict": "confirmed",
+      "note": "Matches DNR and Red Cross steps: turn toward where you came from, place arms on unbroken ice, kick to float your legs up, pull out, then roll or crawl away rather than stand. Re-word to the DNR order if it differs. Minor: 'dig in the picks' should come before 'kick', since picks give the grip.",
+      "source": "https://www.dnr.state.mn.us/safety/ice/index.html"
+    },
+    {
+      "claim": "6. 'One more crack, and there are two of you in the water' is a counterfactual, not a statistic.",
+      "verdict": "confirmed",
+      "note": "No number is claimed, so no source is needed. Keep it hypothetical and do not add 'rescuers often drown' without a named source and figure.",
+      "source": "n/a (no statistic claimed)"
+    },
+    {
+      "claim": "7. 911 call content: lake name, landmark (red shack), person in the water.",
+      "verdict": "confirmed",
+      "note": "Matches NENA and general 911 guidance on location first, then what happened. Add 'stay on the line' and 'use the nearest address, road or GPS if you don't know the lake name', since cell calls may not give an exact location. Optional for the script, but the 911 card could show it.",
+      "source": "https://www.nena.org/page/911-faqs ; https://www.dnr.state.mn.us/safety/ice/index.html"
+    },
+    {
+      "claim": "8. Getting out of the water does not end the hypothermia risk; the person still needs warming and medical help (sets up Part 2).",
+      "verdict": "confirmed",
+      "note": "Wet clothing, afterdrop and ongoing cooling are covered by NCCWS and Red Cross/CDC hypothermia guidance. Line 17 is fine as written. Keep Part 2 to widely known steps (get warm and dry, shelter, call or wait for EMS) with no medical detail.",
+      "source": "https://www.coldwatersafety.org ; https://www.cdc.gov/winter-weather/about/hypothermia.html"
+    },
+    {
+      "claim": "9. December sunset in Minnesota is around 16:30, with blue hour shortly after (DEC 16:31 to 16:38).",
+      "verdict": "confirmed",
+      "note": "Twin Cities sunset in mid-December is about 16:30 to 16:35 CST, and civil twilight runs about 30 minutes after. Clock is plausible. Check exact times for the chosen date at the USNO/NOAA tables. Shifting a minute or two is harmless since the clock is on screen only.",
+      "source": "https://aa.usno.navy.mil/data/RS_OneDay ; https://gml.noaa.gov/grad/solcalc/"
+    },
+    {
+      "claim": "Setting: a creek mouth and a shack on early December ice.",
+      "verdict": "confirmed",
+      "note": "DNR warns that ice near inlets, outlets, creek mouths and moving water is thinner and less reliable. That supports the scene. Add a quick on-screen safety card: DNR minimum is 10 cm (4 in) of new clear ice for walking, with more for groups and vehicles. Flag it for verification. Early-December ice is often thinner than that.",
+      "source": "https://www.dnr.state.mn.us/safety/ice/thickness.html"
+    }
+  ]
+}

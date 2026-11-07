@@ -1,0 +1,64 @@
+{
+  "ideas": [
+    {
+      "title": "Ten Minutes Under",
+      "premise": "Eli takes a sunset shortcut past a creek mouth on a frozen Minnesota lake, falls through six-centimeter ice, and has one minute to breathe, ten to get out and an hour before he passes out.",
+      "hook": "When the ice broke under me, I had ten minutes. Not seconds.",
+      "twist": "Most people think they have seconds and panic, or tear off the heavy jacket; the 1-10-1 rule says you have time, and the jacket's trapped air holds you up.",
+      "world": "Side view at sunset sliding to blue hour, cross-section for the six centimeters and the trapped air, top map for 'turn back the way you came', brother's red shack for the cliffhanger.",
+      "diagrams": ["Ice-thickness ladder (Minnesota DNR)", "1-10-1 timer bar", "Kick-flat angle meter", "Top-view 'turn back' arrows"],
+      "fact": "Minnesota DNR: stay off new clear ice under 10 cm; white ice is about half as strong. Cold-water experts teach 1-10-1.",
+      "verify": "DNR thickness table wording; 1-10-1 numbers as approximate.",
+      "risk": "low",
+      "score": 9
+    },
+    {
+      "title": "Never Rush the Hole",
+      "premise": "Eli's brother sees him go through the ice from his shack sixty meters away and has to decide in seconds how to help without becoming the second person in the water.",
+      "hook": "My brother ran straight at the hole. That's how two people drown.",
+      "twist": "Reach, throw, don't go: lie flat and pass a rod or rope from the strong ice instead of running to the edge.",
+      "world": "Night side view with the lit shack, top map with the brother's path and a red dashed 'wrong' route, cut view of the ice edge breaking under the runner.",
+      "diagrams": ["Reach-throw-go ladder", "Top-view safe approach path", "Weight-spread angle"],
+      "fact": "US Coast Guard and Red Cross ice-rescue guidance: reach, throw, don't go.",
+      "verify": "Exact wording of the reach-throw-go guidance.",
+      "risk": "low",
+      "score": 8
+    },
+    {
+      "title": "The Color of Ice",
+      "premise": "Eli has to cross the lake back to the shack before dark and the only clue to which ice will hold him is its color.",
+      "hook": "Clear ice held me. The white ice right next to it didn't.",
+      "twist": "White, snowy ice looks solid but is roughly half as strong as clear blue ice of the same thickness.",
+      "world": "Side view at dusk with patches of different ice, cross-section with the thickness ruler, swatch chips naming each color.",
+      "diagrams": ["Ice color swatches", "Thickness ruler cross-section", "Creek current under thin ice"],
+      "fact": "Minnesota DNR: white ice is about half as strong as new clear ice.",
+      "verify": "DNR white-ice strength wording.",
+      "risk": "low",
+      "score": 7
+    },
+    {
+      "title": "Sixty Meters of Dark",
+      "premise": "After he gets out, soaked Eli still has sixty meters of open ice and a falling temperature between him and the warm shack.",
+      "hook": "Getting out of the water was only half of it.",
+      "twist": "Keep moving to shelter and get dry and warm; don't stop to rest on the ice.",
+      "world": "Blue hour to night side view, top map distance pill counting down to the shack, freeze-frame on the mistake of sitting down.",
+      "diagrams": ["Distance-to-shelter map", "Heat-loss callouts", "Steps to warm up"],
+      "fact": "CDC hypothermia guidance: get to a warm place, remove wet clothing, warm the core first.",
+      "verify": "CDC first-aid steps for hypothermia.",
+      "risk": "low: avoid medical detail",
+      "score": 6
+    },
+    {
+      "title": "Creek Mouth",
+      "premise": "A shortcut past the creek mouth saves Eli three minutes on the walk home and puts him over the thinnest ice on the lake.",
+      "hook": "The shortcut saved me three minutes. It cost me the ice.",
+      "twist": "Moving water under the ice keeps it thin even in a deep freeze; inlets and outlets are the most dangerous spots.",
+      "world": "Side view of the creek channel, cut view of current eroding the slab from below, top map of the safe route around.",
+      "diagrams": ["Current-under-ice cross-section", "Safe route around inlets", "Thickness comparison"],
+      "fact": "State DNRs warn that ice near inlets, outlets and moving water is thinner.",
+      "verify": "DNR guidance on inlets and currents.",
+      "risk": "low",
+      "score": 6
+    }
+  ]
+}

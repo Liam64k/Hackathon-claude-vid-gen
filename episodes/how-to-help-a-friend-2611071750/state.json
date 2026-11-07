@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "slug": "how-to-help-a-friend-2611071750",
+  "title": "Don't Run to Him",
+  "topic": "How to help a friend who fell through the ice",
+  "surprise": false,
+  "format": "story",
+  "length": 90,
+  "pack": "winter-lake",
+  "mode": "live",
+  "createdAt": "2026-11-07T17:50:12.262Z",
+  "updatedAt": "2026-11-07T18:11:57.380Z",
+  "pick": 0,
+  "voice": {
+    "voiceId": null,
+    "provider": "placeholder",
+    "model": "windows-sapi",
+    "credit": false,
+    "tier": null,
+    "seconds": 104.1
+  },
+  "stages": {
+    "ideas": {
+      "status": "approved",
+      "sessionId": "e751e890-f29f-4c47-a94c-0bdc961e9f8c",
+      "cost": 0.6066,
+      "startedAt": "2026-11-07T17:50:12.264Z",
+      "endedAt": "2026-11-07T17:51:59.828Z",
+      "error": {
+        "code": "interrupted",
+        "message": "Studio was closed during this step. Press Resume."
+      },
+      "warnings": [],
+      "attempts": 1
+    },
+    "script": {
+      "status": "approved",
+      "sessionId": "398f4f93-c99d-4de9-92cb-a23b8778cc68",
+      "cost": 1.3468,
+      "startedAt": "2026-11-07T17:53:26.021Z",
+      "endedAt": "2026-11-07T17:57:46.329Z",
+      "error": null,
+      "warnings": [],
+      "attempts": 1,
+      "words": 250
+    },
+    "shots": {
+      "status": "approved",
+      "sessionId": "1103ae8d-3bd2-412d-bb43-3fa982f8cc9c",
+      "cost": 0.8428,
+      "startedAt": "2026-11-07T17:58:21.507Z",
+      "endedAt": "2026-11-07T18:03:51.306Z",
+      "error": null,
+      "warnings": [
+        "Claude tried tools this stage does not allow: Bash (cd \"C:/Users/liams/Downloads/studio-kit/studio\" && python3 -)."
+      ],
+      "attempts": 1,
+      "shots": 40
+    },
+    "voice": {
+      "status": "approved",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": "2026-11-07T18:04:24.493Z",
+      "endedAt": "2026-11-07T18:05:11.295Z",
+      "error": null,
+      "warnings": [],
+      "attempts": 1
+    },
+    "render": {
+      "status": "review",
+      "sessionId": "e19e007f-4743-4863-8425-6cb9f435a483",
+      "cost": 0.026,
+      "startedAt": "2026-11-07T18:05:19.574Z",
+      "endedAt": "2026-11-07T18:09:36.666Z",
+      "error": null,
+      "warnings": [],
+      "attempts": 1,
+      "info": {
+        "width": 1080,
+        "height": 1920,
+        "fps": "30/1",
+        "audio": true,
+        "duration": 109.266667
+      }
+    }
+  }
+}

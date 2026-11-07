@@ -1,0 +1,120 @@
+[
+  {
+    "text": "When the ice broke under me, I had ten minutes. Not seconds.",
+    "highlight": [
+      "ten",
+      "seconds:r"
+    ]
+  },
+  {
+    "text": "December, sunset, a frozen Minnesota lake. I was walking back from my brother's fishing shack.",
+    "highlight": [
+      "december",
+      "brother's"
+    ]
+  },
+  {
+    "text": "I cut past the creek and never checked the ice. Over moving water, it was six centimeters.",
+    "highlight": [
+      "never:r",
+      "six"
+    ]
+  },
+  {
+    "text": "The Minnesota DNR says under ten centimeters of new clear ice, stay off. White ice? About half as strong.",
+    "highlight": [
+      "ten",
+      "off:r",
+      "half"
+    ]
+  },
+  {
+    "text": "One crack. Then black water, near zero degrees, up to my chest.",
+    "highlight": [
+      "crack:r",
+      "zero"
+    ]
+  },
+  {
+    "text": "Most people think they have seconds, so they panic and thrash. Or they think a heavy jacket drags you down, and tear it off.",
+    "highlight": [
+      "seconds:r",
+      "jacket"
+    ]
+  },
+  {
+    "text": "Both mistakes burn your time. Rescue experts call it one, ten, one. One minute: get your breathing under control.",
+    "highlight": [
+      "ten",
+      "breathing"
+    ]
+  },
+  {
+    "text": "Then about ten minutes of strength to get out. And about one hour before you pass out. That hour is not a rest.",
+    "highlight": [
+      "ten",
+      "hour",
+      "rest:r"
+    ]
+  },
+  {
+    "text": "So for one minute, I only breathed. My jacket stayed on. Trapped air held me up.",
+    "highlight": [
+      "breathed",
+      "air"
+    ]
+  },
+  {
+    "text": "Which way? Step one: turn back the way you came. That ice already held you.",
+    "highlight": [
+      "one",
+      "back",
+      "held:g"
+    ]
+  },
+  {
+    "text": "Step two: arms on the unbroken ice. I had ice picks around my neck for exactly this.",
+    "highlight": [
+      "two",
+      "picks"
+    ]
+  },
+  {
+    "text": "Step three: kick until you're flat, dig in the picks, and slide forward on your stomach.",
+    "highlight": [
+      "three",
+      "kick",
+      "stomach"
+    ]
+  },
+  {
+    "text": "Step four: don't stand up. Roll away from the hole, arms and legs spread wide.",
+    "highlight": [
+      "four",
+      "stand",
+      "roll"
+    ]
+  },
+  {
+    "text": "Minute four. Soaked, shaking, out. Step five: get somewhere warm and call nine-one-one.",
+    "highlight": [
+      "four",
+      "out",
+      "nine-one-one"
+    ]
+  },
+  {
+    "text": "Then I heard my name. \"Eli!\" My brother saw it all from the shack. He was running straight at the hole.",
+    "highlight": [
+      "eli",
+      "running:r"
+    ]
+  },
+  {
+    "text": "The first rule of helping someone? Never rush to the hole. Part two.",
+    "highlight": [
+      "rush:r",
+      "two"
+    ]
+  }
+]

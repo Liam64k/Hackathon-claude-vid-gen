@@ -1,0 +1,10 @@
+{"t":3909,"ev":{"type":"activity","tool":"Read","text":"Reading episodes/{slug}/shotlist.md"}}
+{"t":3934,"ev":{"type":"activity","tool":"Read","text":"Reading src/shots.ts"}}
+{"t":5006,"ev":{"type":"thinking"}}
+{"t":234827,"ev":{"type":"activity","tool":"Bash","text":"Running cd \"\" && python3"}}
+{"t":234854,"ev":{"type":"denied","tool":"Bash","text":""}}
+{"t":236710,"ev":{"type":"thinking"}}
+{"t":297746,"ev":{"type":"activity","tool":"Write","text":"Writing src/shots.ts"}}
+{"t":299123,"ev":{"type":"thinking"}}
+{"t":300999,"ev":{"type":"activity","tool":"Bash","text":"Running typecheck"}}
+{"t":312218,"ev":{"type":"result","cost":0.8428376999999999,"durationMs":310910,"turns":6}}

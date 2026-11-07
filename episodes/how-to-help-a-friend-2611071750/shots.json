@@ -1,0 +1,242 @@
+[
+  {
+    "id": "1a",
+    "line": 0,
+    "scene": "lakeSide",
+    "weight": 2.2
+  },
+  {
+    "id": "1b",
+    "line": 0,
+    "scene": "lakeSide",
+    "weight": 2.3
+  },
+  {
+    "id": "2a",
+    "line": 1,
+    "scene": "lakeSide",
+    "weight": 3.2
+  },
+  {
+    "id": "2b",
+    "line": 1,
+    "scene": "lakeSide",
+    "weight": 3.3
+  },
+  {
+    "id": "3a",
+    "line": 2,
+    "scene": "lakeSide",
+    "weight": 2.2
+  },
+  {
+    "id": "3b",
+    "line": 2,
+    "scene": "lakeCut",
+    "weight": 2.4
+  },
+  {
+    "id": "3c",
+    "line": 2,
+    "scene": "lakeSide",
+    "weight": 2.6
+  },
+  {
+    "id": "4a",
+    "line": 3,
+    "scene": "lakeSide",
+    "weight": 2.2
+  },
+  {
+    "id": "4b",
+    "line": 3,
+    "scene": "lakeTop",
+    "weight": 2.3
+  },
+  {
+    "id": "5a",
+    "line": 4,
+    "scene": "lakeSide",
+    "weight": 3.2
+  },
+  {
+    "id": "5b",
+    "line": 4,
+    "scene": "lakePrint",
+    "weight": 3.3
+  },
+  {
+    "id": "6a",
+    "line": 5,
+    "scene": "lakeCut",
+    "weight": 2.4
+  },
+  {
+    "id": "6b",
+    "line": 5,
+    "scene": "lakeSide",
+    "weight": 2.5
+  },
+  {
+    "id": "7a",
+    "line": 6,
+    "scene": "lakeSide",
+    "weight": 2
+  },
+  {
+    "id": "7b",
+    "line": 6,
+    "scene": "lakeCut",
+    "weight": 2.1
+  },
+  {
+    "id": "8a",
+    "line": 7,
+    "scene": "lakeCut",
+    "weight": 2.2
+  },
+  {
+    "id": "8b",
+    "line": 7,
+    "scene": "lakeCut",
+    "weight": 2.3
+  },
+  {
+    "id": "8c",
+    "line": 7,
+    "scene": "lakeCut",
+    "weight": 2.3
+  },
+  {
+    "id": "9a",
+    "line": 8,
+    "scene": "lakeSide",
+    "weight": 2.4
+  },
+  {
+    "id": "9b",
+    "line": 8,
+    "scene": "lakeTop",
+    "weight": 2.5
+  },
+  {
+    "id": "10a",
+    "line": 9,
+    "scene": "lakeSide",
+    "weight": 2
+  },
+  {
+    "id": "10b",
+    "line": 9,
+    "scene": "lakeTop",
+    "weight": 2.4
+  },
+  {
+    "id": "11a",
+    "line": 10,
+    "scene": "lakeSide",
+    "weight": 2.2
+  },
+  {
+    "id": "11b",
+    "line": 10,
+    "scene": "lakeSide",
+    "weight": 2.3
+  },
+  {
+    "id": "11c",
+    "line": 10,
+    "scene": "lakeTop",
+    "weight": 2.3
+  },
+  {
+    "id": "12a",
+    "line": 11,
+    "scene": "lakeSide",
+    "weight": 2.8
+  },
+  {
+    "id": "12b",
+    "line": 11,
+    "scene": "lakeSide",
+    "weight": 2.8
+  },
+  {
+    "id": "12c",
+    "line": 11,
+    "scene": "lakeSide",
+    "weight": 2.8
+  },
+  {
+    "id": "13a",
+    "line": 12,
+    "scene": "lakeSide",
+    "weight": 2.8
+  },
+  {
+    "id": "13b",
+    "line": 12,
+    "scene": "lakeSide",
+    "weight": 2.9
+  },
+  {
+    "id": "14a",
+    "line": 13,
+    "scene": "lakeCut",
+    "weight": 1.9
+  },
+  {
+    "id": "14b",
+    "line": 13,
+    "scene": "lakeCut",
+    "weight": 1.9
+  },
+  {
+    "id": "14c",
+    "line": 13,
+    "scene": "lakeSide",
+    "weight": 1.9
+  },
+  {
+    "id": "15a",
+    "line": 14,
+    "scene": "lakeSide",
+    "weight": 2
+  },
+  {
+    "id": "15b",
+    "line": 14,
+    "scene": "lakeSide",
+    "weight": 2
+  },
+  {
+    "id": "15c",
+    "line": 14,
+    "scene": "lakeTop",
+    "weight": 2.1
+  },
+  {
+    "id": "16a",
+    "line": 15,
+    "scene": "lakeSide",
+    "weight": 2.8
+  },
+  {
+    "id": "16b",
+    "line": 15,
+    "scene": "lakeTop",
+    "weight": 2.9
+  },
+  {
+    "id": "17a",
+    "line": 16,
+    "scene": "lakeSide",
+    "weight": 2.6
+  },
+  {
+    "id": "17b",
+    "line": 16,
+    "scene": "lakeSide",
+    "weight": 2.7
+  }
+]

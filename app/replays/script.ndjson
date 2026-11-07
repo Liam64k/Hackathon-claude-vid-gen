@@ -1,0 +1,13 @@
+{"t":1879,"ev":{"type":"thinking"}}
+{"t":2563,"ev":{"type":"activity","tool":"Read","text":"Reading survival-short › story.md"}}
+{"t":3119,"ev":{"type":"activity","tool":"Read","text":"Reading story-explainer-2d › survival-format.md"}}
+{"t":3660,"ev":{"type":"activity","tool":"Read","text":"Reading survival-short › shots.md"}}
+{"t":4272,"ev":{"type":"activity","tool":"Read","text":"Reading episodes/ten-minutes-under/script.md"}}
+{"t":5288,"ev":{"type":"thinking"}}
+{"t":161650,"ev":{"type":"activity","tool":"Write","text":"Writing episodes/{slug}/lines.json"}}
+{"t":187327,"ev":{"type":"activity","tool":"Write","text":"Writing episodes/{slug}/script.md"}}
+{"t":187979,"ev":{"type":"thinking"}}
+{"t":242794,"ev":{"type":"activity","tool":"Write","text":"Writing episodes/{slug}/shotlist.md"}}
+{"t":243689,"ev":{"type":"thinking"}}
+{"t":250641,"ev":{"type":"activity","tool":"Edit","text":"Editing episodes/{slug}/shotlist.md"}}
+{"t":260045,"ev":{"type":"result","cost":1.1090803,"durationMs":258873,"turns":9}}

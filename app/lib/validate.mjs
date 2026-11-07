@@ -1,0 +1,135 @@
+// Validation of stage outputs (ideas.json, lines.json, src/shots.ts) and the survival safety rules.
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+import path from "node:path";
+import { ROOT, RUNTIME, SHOTS_TS, APP } from "./paths.mjs";
+import { LENGTHS } from "./store.mjs";
+
+// ---- safety (BUILD-PROMPT §3.7) -------------------------------------------------------------------
+// Survival topics: safe, widely known advice only. No chemistry, weapons, medicine doses, live
+// electricity, gore. Used on the topic before any Claude run and on every script line after.
+const UNSAFE = [
+  [/\b(bomb(?!\s+cyclone)|explosive|detonat|gunpowder|thermite|napalm|molotov)\w*/i, "explosives"], // "bomb cyclone" is a winter storm
+  [/\b(gun|rifle|pistol|firearm|ammo|ammunition|shoot(ing)? (someone|people)|weapon)s?\b/i, "weapons"],
+  // (carbon-monoxide *poisoning* in an ice shack is widely known safety advice, so "poisoning" is allowed)
+  [/\b(make|making|brew|brewing) (a )?poison\b|\b(chlorine gas|bleach (and|\+) ammonia|mix(ing)? (household )?chemicals|synthesi[sz]e)\b/i, "chemistry / poisons"],
+  [/\b(\d+\s?(mg|milligrams?|pills?|tablets?)|mg|milligrams?|dosage|overdose|doses? of (medicine|medication|pills|tablets|painkillers?)|how many (pills|tablets)|ibuprofen|acetaminophen|paracetamol|aspirin|tylenol|advil|painkillers?|opioids?|sedatives?)\b/i, "medicine doses"],
+  [/\b(live wire|power line|downed line|high voltage|electrocut\w*|jump[- ]?start)\b/i, "live electricity"],
+  [/\b(gore|gory|dismember\w*|decapitat\w*|blood(y)? (pool|spray|everywhere)|corpse|mutilat\w*)\b/i, "gore"],
+  [/\b(suicide|self[- ]harm|kill (myself|yourself))\b/i, "self-harm"],
+];
+export const safetyIssues = (text) => {
+  const s = String(text ?? "");
+  return UNSAFE.filter(([re]) => re.test(s)).map(([, label]) => label);
+};
+
+// ---- ideas ---------------------------------------------------------------------------------------
+export const IDEAS_SCHEMA = {
+  type: "object",
+  properties: {
+    ideas: {
+      type: "array",
+      minItems: 5,
+      maxItems: 5,
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "2-5 word episode title" },
+          premise: { type: "string", description: "one sentence: WHO + CONSTRAINT + CLOCK + RESOURCE" },
+          hook: { type: "string", description: "the first spoken line, under 14 words" },
+          twist: { type: "string", description: "the non-obvious turn or myth it busts" },
+          world: { type: "string", description: "how it uses the Winter Lake world (views, time of day, Eli/brother)" },
+          diagrams: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5, description: "3-5 on-screen explainers" },
+          fact: { type: "string", description: "the key real fact or number, with the organisation that publishes it" },
+          verify: { type: "string", description: "what must be fact-checked before publishing" },
+          risk: { type: "string", description: "safety / originality / sensitivity risk, or 'low'" },
+          score: { type: "integer", minimum: 0, maximum: 9, description: "0-9: clear in 1 s + twist + showable in this pack" },
+        },
+        required: ["title", "premise", "hook", "twist", "world", "diagrams", "fact", "verify", "risk", "score"],
+      },
+    },
+  },
+  required: ["ideas"],
+};
+
+export const validateIdeas = (data) => {
+  const errs = [];
+  const ideas = data?.ideas;
+  if (!Array.isArray(ideas)) return ["ideas must be an array"];
+  if (ideas.length !== 5) errs.push(`expected 5 ideas, got ${ideas.length}`);
+  ideas.forEach((it, i) => {
+    for (const k of IDEAS_SCHEMA.properties.ideas.items.required) if (it?.[k] === undefined || it[k] === "") errs.push(`idea ${i + 1}: missing ${k}`);
+    if (it?.diagrams && !Array.isArray(it.diagrams)) errs.push(`idea ${i + 1}: diagrams must be a list`);
+    const unsafe = safetyIssues(`${it?.premise} ${it?.hook} ${it?.twist}`);
+    if (unsafe.length) errs.push(`idea ${i + 1}: unsafe content (${unsafe.join(", ")})`);
+  });
+  return errs;
+};
+
+// ---- lines.json ----------------------------------------------------------------------------------
+export const wordCount = (lines) => lines.reduce((a, l) => a + String(l.text).trim().split(/\s+/).filter(Boolean).length, 0);
+const norm = (w) => w.toLowerCase().replace(/[^a-z0-9'’-]/g, "");
+
+export const validateLines = (lines, length = 90) => {
+  const errs = [];
+  if (!Array.isArray(lines)) return { errors: ["lines.json must be a JSON array"], words: 0 };
+  if (lines.length < 8 || lines.length > 24) errs.push(`expected 8-24 lines, got ${lines.length}`);
+  lines.forEach((l, i) => {
+    if (!l || typeof l.text !== "string" || !l.text.trim()) return errs.push(`line ${i}: text missing`);
+    if (!Array.isArray(l.highlight)) return errs.push(`line ${i}: highlight must be an array of words`);
+    if (/\d/.test(l.text)) errs.push(`line ${i}: spell numbers out for the voice ("${l.text.match(/\S*\d\S*/)[0]}")`);
+    if (l.text.split(/\s+/).length > 34) errs.push(`line ${i}: too long for one caption beat (${l.text.split(/\s+/).length} words, max 34)`);
+    const words = new Set(l.text.split(/\s+/).map(norm));
+    for (const h of l.highlight) {
+      const w = norm(String(h).replace(/:(r|g|p)$/, ""));
+      if (!words.has(w)) errs.push(`line ${i}: highlight "${h}" is not a word in the line`);
+    }
+    const unsafe = safetyIssues(l.text);
+    if (unsafe.length) errs.push(`line ${i}: unsafe content (${unsafe.join(", ")})`);
+  });
+  const words = wordCount(lines.filter((l) => l && typeof l.text === "string"));
+  const [lo, hi] = LENGTHS[length] ?? LENGTHS[90];
+  if (words < lo || words > hi) errs.push(`script is ${words} words; target ${lo}-${hi} for ~${length} s`);
+  return { errors: errs, words };
+};
+
+// ---- src/shots.ts --------------------------------------------------------------------------------
+// shots.ts is type-import-only by design, so we transpile it with the project's TypeScript and import it.
+const require = createRequire(path.join(ROOT, "package.json"));
+export const loadShots = async (file = SHOTS_TS) => {
+  const ts = require("typescript");
+  const js = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  mkdirSync(RUNTIME, { recursive: true });
+  const tmp = path.join(RUNTIME, `shots-${process.pid}-${Date.now()}.mjs`);
+  writeFileSync(tmp, js);
+  try {
+    const m = await import(pathToFileURL(tmp).href);
+    return { TITLE: m.TITLE, LINES: m.LINES, SHOTS: m.SHOTS };
+  } finally {
+    rmSync(tmp, { force: true });
+  }
+};
+
+const catalog = () => JSON.parse(readFileSync(path.join(APP, "pack-catalog.json"), "utf8"));
+
+export const validateShots = ({ LINES, SHOTS }, lines) => {
+  const errs = [];
+  const cat = catalog();
+  const scenes = new Set(Object.keys(cat.scenes ?? {}));
+  if (!Array.isArray(LINES) || !Array.isArray(SHOTS)) return ["shots.ts must export LINES and SHOTS arrays"];
+  if (lines) {
+    if (LINES.length !== lines.length) errs.push(`LINES has ${LINES.length} entries but the approved script has ${lines.length}`);
+    lines.forEach((l, i) => { if (LINES[i] && LINES[i].text.trim() !== l.text.trim()) errs.push(`LINES[${i}] text differs from the approved script`); });
+  }
+  const used = new Set();
+  SHOTS.forEach((s, i) => {
+    if (!Number.isInteger(s.line) || s.line < 0 || s.line >= LINES.length) errs.push(`shot ${s.id ?? i}: line ${s.line} does not exist`);
+    used.add(s.line);
+    if (scenes.size && !scenes.has(s.scene)) errs.push(`shot ${s.id ?? i}: unknown scene "${s.scene}"`);
+    if (!s.from || typeof s.from.zoom !== "number") errs.push(`shot ${s.id ?? i}: camera "from" missing`);
+  });
+  LINES.forEach((_, i) => { if (!used.has(i)) errs.push(`line ${i} has no shot`); });
+  if (SHOTS.length < 12 || SHOTS.length > 60) errs.push(`expected 12-60 shots, got ${SHOTS.length}`);
+  return errs;
+};

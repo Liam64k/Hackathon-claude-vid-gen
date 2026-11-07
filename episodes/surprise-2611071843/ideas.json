@@ -1,0 +1,93 @@
+{
+  "ideas": [
+    {
+      "title": "Don't Run To Him",
+      "premise": "Eli watches his brother crash through the ice forty meters away at blue hour, and the only things he has are his phone, his voice, and the ten minutes before his brother's arms stop working.",
+      "hook": "If your brother falls through the ice, don't run to him.",
+      "twist": "The instinct is to sprint to the hole and grab him, which puts a second person in the water. The red dashed ghost shows that version: Eli runs, the edge breaks, and now both are in. What Eli actually does: stops, calls 911, and talks his brother through the self-rescue (turn back the way you came, arms on the ice, kick flat, slide, roll away). He only moves closer lying flat on his stomach to spread his weight. The skill's reach–throw–go order: never just 'go'.",
+      "world": "SIDE view at sunset: the footprint trail, the brother's red shack, the hole cracking open. A freeze-frame blue 'paused' look sets up the mistake ghost. The TOP map shows Eli's path, the hole and distance arrows while the 'brother distance' pill counts down 40 m → 12 m (lying flat). The CUT view shows the brother kicking flat. The DEC clock runs 4:52 → blue hour, the in-water timer and 1-10-1 strip run, and speech bubbles carry Eli's instructions. Ends at night on the shore with both alive.",
+      "diagrams": [
+        "TOP map: the hole, distance arrows and a red X on the 'run straight in' path, then Eli's slower stomach-slide path",
+        "Side-view mistake ghost: Eli running, the ice breaking, two people in the water (freeze-frame, red dashed)",
+        "911-call card: what to say (lake, nearest landmark, 'person through the ice')",
+        "1-10-1 card with the in-water timer: what his brother's next ten minutes look like",
+        "Callouts and arrows: standing puts weight on two boot soles, lying flat spreads it along the whole body (boot-print close-up vs. a body outline)"
+      ],
+      "fact": "Minnesota DNR ice-rescue guidance: call 911, and reach or throw from solid ice rather than going out to the person, because rescuers often become victims. 1-10-1 principle (about 1 minute of cold shock, about 10 minutes of useful movement, about 1 hour before hypothermia makes you unconscious), from cold-water researcher Dr. Gordon Giesbrecht / Cold Water Boot Camp and repeated by the Minnesota DNR.",
+      "verify": "The exact wording and order of the Minnesota DNR's 'reach / throw / go' or 'preach-reach-throw-go' advice, and whether the DNR says to lie flat when approaching. 1-10-1 numbers and who they are attributed to. Do not quote any statistic on rescuers who drowned unless a named source (DNR, US Coast Guard, Lifesaving Society) gives it.",
+      "risk": "Low–medium. It's a rescue scenario, so the narration must clearly tell viewers to call 911 and not to copy a risky approach. The stomach slide is shown only as a last-resort way to get closer, not a hero move. No rope or pole can be drawn, so 'throw' can only be mentioned, not shown.",
+      "score": 9
+    },
+    {
+      "title": "Walking in Circles",
+      "premise": "Eli leaves his brother's red shack at night to walk the four hundred meters to shore, a whiteout erases the pines, and with no landmarks and his footprints filling with snow he has minutes before he loses his trail and drifts toward the thin ice at the creek mouth.",
+      "hook": "If a whiteout catches you on a frozen lake, don't keep walking.",
+      "twist": "Everyone thinks they can walk a straight line to shore. Without visual references, people curve, sometimes in full circles. Eli's 'straight' path bends right toward the creek mouth. The safe move: stop as soon as you lose the shore, turn around and follow your own fresh footprints back to the shack while you can still see them, then phone your brother and wait out the storm in shelter instead of guessing.",
+      "world": "Blue hour → night. The SIDE view shows snow thickening until the pine shore vanishes. The TOP map tells the story: the straight line Eli believes he's walking vs. the curving line he actually walks, bending toward the creek mouth, with the thin-ice zone shaded. A boot-print close-up shows the prints filling with snow (the clock). The DEC clock runs 6:10 → 6:24, a 'brother distance' pill grows as he drifts away from the red shack, and a speech bubble carries his phone call to his brother.",
+      "diagrams": [
+        "TOP map: the 'intended' straight arrow vs. the real curving path, with circles drawn on the ice",
+        "Boot-print close-up: a print filling with snow across three timed frames (callout: 'trail fading')",
+        "Side-view callout: shore visible → shore gone, with the 'no landmark' tag",
+        "Swatch chips: 'SEE SHORE = GO' / 'NO SHORE = STOP'",
+        "TOP map with arrows: the safe route back along the footprint trail to the red shack"
+      ],
+      "fact": "A 2009 study by the Max Planck Institute for Biological Cybernetics (Souman et al., published in Current Biology) found that people walking without the sun or landmarks, in fog or blindfolded, veered into circles, some as small as about 20 meters across.",
+      "verify": "The study details: which conditions (forest, desert, blindfolded), circle diameters, and the journal and year. Any official winter-safety advice to stay put or stay in shelter during a whiteout on ice (Minnesota DNR or National Weather Service). Make sure 'follow your footprints back' is framed as advice only while they're still clearly visible.",
+      "risk": "Low. Make clear Eli's mistake was leaving shelter as the weather turned. Don't suggest walking blind. Phone signal and battery on ice shouldn't be presented as guaranteed.",
+      "score": 8
+    },
+    {
+      "title": "The Walk Back",
+      "premise": "Sequel to Ten Minutes Under: Eli has just dragged himself out of the hole, soaked, at blue hour, and the cold is still winning as he decides how to cover the three hundred meters of ice between him and warmth.",
+      "hook": "Getting out of the ice was step one. The walk back almost got me.",
+      "twist": "The myth: once you're out of the water, you're safe. Eli's mistake ghost stands up right at the edge, and the ice cracks again. Then he heads for the far shore and his truck. The safe sequence: stay flat and roll away from the hole, crawl until you're on ice that held you, retrace your own footprints (that ice already carried your weight), get into the nearest warm shelter (his brother's red shack), get the wet clothes off and call for help. Wet clothes keep pulling heat even out of the water, and the danger isn't over.",
+      "world": "Opens with a 'PART 2' rhyme on Ten Minutes Under's last frame. SIDE view at blue hour: Eli lying and rolling away from the hole, the red dashed ghost standing up at the edge, then the walk along the footprint trail to the red shack. The TOP map compares two routes (far shore vs. the brother's red shack). The CUT view shows water squeezing out of the trapped air in the jacket. The DEC clock ticks as night falls, the brother appears at the shack door, and they make the 911 call together.",
+      "diagrams": [
+        "Side-view mistake ghost: standing at the edge puts all his weight on one boot, the edge cracks (whip-zoom, shake)",
+        "TOP map: route A to the far shore (long, near the creek) vs. route B along the footprints to the red shack (short, proven ice)",
+        "Boot-print close-up: 'this ice already held you' callout on his own outbound prints",
+        "911-call card from inside the shack",
+        "Swatch chips: 'WET = LOSING HEAT' / 'DRY + SHELTER'"
+      ],
+      "fact": "Minnesota DNR self-rescue guidance: once out, don't stand up; roll away from the hole and go back the way you came. Commonly cited: water draws heat from the body about 25 times faster than air (published by several cold-water and water-safety groups; a source still has to be confirmed).",
+      "verify": "The exact Minnesota DNR wording on rolling away and retracing your path. The '25 times faster' figure and a named organization that publishes it (otherwise cut it). Keep warming advice to the widely known basics (shelter, dry clothes, call for help, get checked by medical staff). No medical procedures or rewarming techniques.",
+      "risk": "Medium. Hypothermia aftercare drifts toward medical advice, so keep it to shelter, dry clothes and calling 911. It also has to stay consistent with Ten Minutes Under's continuity (jacket, picks, time of day).",
+      "score": 7
+    },
+    {
+      "title": "Half as Strong",
+      "premise": "Eli drills a test hole at sunset, the ruler reads twelve centimeters, he's sure that's safe to walk on, but the ice is cloudy white, and with every step toward his brother's shack he's trusting a number that only tells half the story.",
+      "hook": "Why you must never trust the number on your ice ruler.",
+      "twist": "People treat the thickness as the whole answer. But white, cloudy 'snow ice' is only about half as strong as clear blue ice, so you need roughly double the thickness. And ice isn't the same everywhere, so you keep checking as you go. Eli hears the crack, gets down flat, spreads his weight and slides back along his own footprints before the hole opens. No fall, just a very close call and the rule.",
+      "world": "Sunset. The SIDE view shows Eli drilling near the shacks, then walking toward the brother's red shack while the hole starts to crack open (shake, white flash). The CUT view puts the ice ruler on a clear layer vs. a white layer, and the ice-thickness pill reads '12 CM' then is re-tagged 'WORTH ~6'. A boot-print close-up shows the cracks spreading. Eli slides back on his stomach. His brother shouts from the shack in a speech bubble. The DEC clock runs 4:31 → 4:40.",
+      "diagrams": [
+        "Minnesota DNR ice-thickness ladder (walk / snowmobile / car)",
+        "CUT view: the thickness ruler on clear ice vs. white ice with a '÷2' callout",
+        "Swatch chips: 'CLEAR BLUE' vs. 'WHITE / CLOUDY'",
+        "Mistake ghost: Eli keeps walking upright over the cracking spot",
+        "Boot-print close-up: cracks radiating out, then the switch to a flat body slide"
+      ],
+      "fact": "Minnesota DNR ice-thickness guidelines: at least 4 inches (about 10 cm) of new clear ice to walk on. The DNR also notes that white or snow ice is only about half as strong as new clear ice, so the guideline thickness should be doubled.",
+      "verify": "The exact DNR ladder values and their metric conversions, which the existing ladder card must match. The 'half as strong / double the thickness' wording on the DNR page. Whether the DNR says ice thickness should be checked every so many meters (only quote a distance if they publish one). Narration needs to say 'no ice is ever completely safe' (a DNR line).",
+      "risk": "Low. Overlaps with Ten Minutes Under's theme of reading the ice, so the angle (ice color, no fall) needs to feel clearly different. Never imply any thickness is a guarantee.",
+      "score": 7
+    },
+    {
+      "title": "Keep the Jacket On",
+      "premise": "Told by Eli's brother: he falls through near the creek mouth at dusk, his soaked winter jacket feels like it's dragging him down, and in the first panicked minute he grabs the zipper to get rid of the one thing keeping him afloat.",
+      "hook": "Everyone thinks a heavy winter jacket drowns you. Mine kept me floating.",
+      "twist": "The myth is that wet winter clothes drag you down, so you should strip them off. In the first minutes, air trapped in the jacket and layers actually helps you float and slows heat loss. The brother's safe moves: keep the jacket on, ride out the cold-shock gasping for about a minute without thrashing, turn back toward the ice he came from, then arms on the ice, kick flat and slide out.",
+      "world": "A switched narrator: the brother tells it, Eli shouts from the shore and makes the call. The SIDE view shows the creek mouth with its thin ice at dusk. The CUT view is the centerpiece: bubbles of trapped air in the jacket with a callout, the current moving, and the red dashed ghost of the brother unzipping and sinking lower. The 1-10-1 strip and in-water timer run, the 'brother distance' pill shows Eli staying back, and the 911-call card appears.",
+      "diagrams": [
+        "CUT view: trapped air in the jacket labeled 'FLOAT', with the unzipping mistake ghost riding lower in the water",
+        "1-10-1 card with the in-water timer: the first minute is breathing, not swimming",
+        "Freeze-frame callout: 'Don't strip' → 'Turn to the ice you came from'",
+        "Side view: arms on the ice, kick flat, slide, roll (STEP 1–4 stamps)"
+      ],
+      "fact": "The National Center for Cold Water Safety and Cold Water Boot Camp (Dr. Gordon Giesbrecht) advise keeping clothing on after a cold-water fall, because trapped air helps you float and the layers slow heat loss. 1-10-1 principle, also cited by the Minnesota DNR.",
+      "verify": "Both organizations' wording on keeping clothes on. Whether advice differs for heavy boots. The 1-10-1 numbers and their attribution. Don't claim exactly how long the trapped air lasts unless a source says so.",
+      "risk": "Medium. The in-water self-rescue overlaps heavily with Ten Minutes Under, so the jacket myth has to carry the episode. A brother narrator breaks the Eli-led voice. Confirm the rig supports the brother in the water and arms-on-ice poses.",
+      "score": 6
+    }
+  ]
+}

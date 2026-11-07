@@ -1,0 +1,137 @@
+// Project state: episodes/<slug>/state.json. Stages are resumable from this file; nothing secret is stored.
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, statSync } from "node:fs";
+import path from "node:path";
+import { EPISODES, EXAMPLE_SLUG, episodeDir } from "./paths.mjs";
+
+export const STAGES = ["ideas", "script", "shots", "voice", "render"];
+export const STAGE_LABELS = { ideas: "Ideas", script: "Script", shots: "Storyboard", voice: "Voice", render: "Render" };
+export const FORMATS = {
+  story: "Survival story — first person, past tense, one character's mistake and how they got out",
+  what: "What would you do? — second person, the viewer is on the ice, choices with consequences",
+  myth: "Myth vs fact — a common belief, why it is wrong, what really works",
+};
+export const LENGTHS = { 75: [190, 225], 90: [230, 280], 110: [270, 300] };
+
+export const slugify = (s) =>
+  String(s ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "episode";
+
+const stamp = () => new Date().toISOString().replace(/[-:T]/g, "").slice(2, 12); // yymmddhhmm
+
+export const writeJson = (file, data) => {
+  mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp-${process.pid}`;
+  writeFileSync(tmp, JSON.stringify(data, null, 2));
+  renameSync(tmp, file);
+};
+export const readJson = (file, fallback = null) => {
+  try {
+    return JSON.parse(readFileSync(file, "utf8").replace(/^﻿/, ""));
+  } catch {
+    return fallback;
+  }
+};
+
+const stateFile = (slug) => path.join(episodeDir(slug), "state.json");
+
+export const blankStage = () => ({ status: "idle", sessionId: null, cost: 0, startedAt: null, endedAt: null, error: null, warnings: [], attempts: 0 });
+
+export const createProject = ({ topic, surprise, format = "story", length = 90, mode = "live" }) => {
+  const base = surprise || !topic ? "surprise" : slugify(topic).split("-").slice(0, 5).join("-");
+  let slug = `${base}-${stamp()}`;
+  let n = 2;
+  while (existsSync(episodeDir(slug))) slug = `${base}-${stamp()}-${n++}`;
+  const state = {
+    version: 1,
+    slug,
+    title: null,
+    topic: surprise ? "" : String(topic ?? "").slice(0, 300),
+    surprise: !!surprise || !topic,
+    format: FORMATS[format] ? format : "story",
+    length: LENGTHS[length] ? Number(length) : 90,
+    pack: "winter-lake",
+    mode,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    pick: null,
+    voice: { voiceId: null, provider: null, model: null, credit: false },
+    stages: Object.fromEntries(STAGES.map((s) => [s, blankStage()])),
+  };
+  save(state);
+  return state;
+};
+
+export const load = (slug) => {
+  if (!/^[a-z0-9-]+$/.test(slug)) return null;
+  const s = readJson(stateFile(slug));
+  if (!s) return null;
+  for (const st of STAGES) s.stages[st] = { ...blankStage(), ...(s.stages?.[st] ?? {}) };
+  return s;
+};
+
+export const save = (state) => {
+  state.updatedAt = new Date().toISOString();
+  writeJson(stateFile(state.slug), state);
+  return state;
+};
+
+export const update = (slug, fn) => {
+  const s = load(slug);
+  if (!s) throw Object.assign(new Error(`No project ${slug}`), { status: 404 });
+  fn(s);
+  return save(s);
+};
+
+// The next stage the user has to act on.
+export const currentStage = (s) => {
+  for (const st of STAGES) if (s.stages[st].status !== "approved") return st;
+  return "done";
+};
+
+// A project is "after" a stage once that stage is approved; editing an earlier stage resets later ones.
+export const resetFrom = (s, stage) => {
+  const i = STAGES.indexOf(stage);
+  for (const st of STAGES.slice(i)) s.stages[st] = { ...blankStage(), cost: s.stages[st].cost };
+};
+
+export const list = () => {
+  if (!existsSync(EPISODES)) return [];
+  const out = [];
+  for (const d of readdirSync(EPISODES)) {
+    const s = load(d);
+    if (s) {
+      const dir = episodeDir(d);
+      out.push({
+        slug: s.slug,
+        title: s.title,
+        topic: s.topic,
+        surprise: s.surprise,
+        mode: s.mode,
+        stage: currentStage(s),
+        updatedAt: s.updatedAt,
+        cover: existsSync(path.join(dir, "cover.png")) ? `episodes/${d}/cover.png` : null,
+        cost: Object.values(s.stages).reduce((a, x) => a + (x.cost || 0), 0),
+      });
+    }
+  }
+  out.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  // The finished example episode that ships with the kit (read-only).
+  const ex = episodeDir(EXAMPLE_SLUG);
+  if (existsSync(ex)) {
+    out.push({
+      slug: EXAMPLE_SLUG,
+      title: "Ten Minutes Under",
+      topic: "Falling through lake ice — the 1-10-1 rule",
+      example: true,
+      stage: "done",
+      updatedAt: statSync(ex).mtime.toISOString(),
+      cover: existsSync(path.join(ex, "cover.png")) ? `episodes/${EXAMPLE_SLUG}/cover.png` : null,
+      cost: 0,
+    });
+  }
+  return out;
+};

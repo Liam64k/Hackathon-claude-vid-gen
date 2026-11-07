@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "slug": "surprise-2611071843",
+  "title": null,
+  "topic": "",
+  "surprise": true,
+  "format": "story",
+  "length": 90,
+  "pack": "winter-lake",
+  "mode": "live",
+  "createdAt": "2026-11-07T18:43:37.721Z",
+  "updatedAt": "2026-11-07T18:45:27.228Z",
+  "pick": null,
+  "voice": {
+    "voiceId": null,
+    "provider": null,
+    "model": null,
+    "credit": false
+  },
+  "stages": {
+    "ideas": {
+      "status": "review",
+      "sessionId": "f5d8ed9c-25ea-441e-a9d8-5123afc20a03",
+      "cost": 0.3763,
+      "startedAt": "2026-11-07T18:43:37.725Z",
+      "endedAt": "2026-11-07T18:45:27.228Z",
+      "error": null,
+      "warnings": [],
+      "attempts": 1
+    },
+    "script": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    },
+    "shots": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    },
+    "voice": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    },
+    "render": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    }
+  }
+}

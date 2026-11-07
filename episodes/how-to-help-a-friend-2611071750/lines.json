@@ -1,0 +1,19 @@
+[
+  {"text": "If your brother falls through the ice, don't run to him.", "highlight": ["brother", "run:r"]},
+  {"text": "December sunset, a Minnesota lake. My brother cut past the creek mouth to his red shack.", "highlight": ["december", "creek:r", "red"]},
+  {"text": "One crack, and he was in. I was forty meters back, with my phone and my ice picks.", "highlight": ["crack:r", "forty", "picks"]},
+  {"text": "Every part of me wanted to sprint out and grab him.", "highlight": ["sprint:r", "grab:r"]},
+  {"text": "But a sprint puts all your weight on two boot prints, on ice that just broke.", "highlight": ["weight", "two", "broke:r"]},
+  {"text": "One more crack, and there are two of you in the water.", "highlight": ["crack:r", "two:r"]},
+  {"text": "So I stopped. Cold water runs on one, ten, one.", "highlight": ["stopped:g", "ten"]},
+  {"text": "About one minute of gasping. About ten minutes of useful strength. Up to one hour before passing out.", "highlight": ["minute", "ten", "hour"]},
+  {"text": "Enough time to do it right. Not enough to do it twice.", "highlight": ["right:g", "twice:r"]},
+  {"text": "Step one: call. Nine-one-one, three things: the lake's name, the red shack, person in the water.", "highlight": ["call:g", "three", "shack"]},
+  {"text": "Step two: reach or throw. I got down flat on my stomach to spread my weight out.", "highlight": ["reach:g", "throw:g", "flat:g"]},
+  {"text": "I inched along his footprints, stopped short of the hole, and pushed my ice picks across to him on their cord.", "highlight": ["footprints:g", "hole:r", "picks:g"]},
+  {"text": "Step three: don't go in after him. My job was to talk him out.", "highlight": ["go:r", "talk:g"]},
+  {"text": "Arms on the ice. Kick your legs up flat. Dig in the picks and pull.", "highlight": ["arms:g", "kick:g", "pull:g"]},
+  {"text": "He slid out on his stomach. Don't stand, I said. Roll the way you came.", "highlight": ["stand:r", "roll:g"]},
+  {"text": "We rolled away along his footprints as blue hour fell. Soaked, shaking, but out.", "highlight": ["footprints:g", "blue", "out:g"]},
+  {"text": "Out of the water isn't out of the cold. Part two: the hour after.", "highlight": ["cold:r", "two"]}
+]

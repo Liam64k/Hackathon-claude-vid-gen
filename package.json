@@ -1,0 +1,35 @@
+{
+  "name": "ai-2d-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Episode out/episode.mp4",
+    "storyboard": "sh scripts/storyboard.sh",
+    "typecheck": "tsc --noEmit",
+    "phone": "remotion ffmpeg -y -i out/episode.mp4 -c:v libx264 -crf 26 -preset medium -c:a aac -b:a 128k -movflags +faststart out/episode-phone.mp4",
+    "start": "node app/server.mjs",
+    "app": "node app/server.mjs",
+    "doctor": "node app/doctor.mjs",
+    "demo": "node app/server.mjs --replay",
+    "test": "node --test app/"
+  },
+  "dependencies": {
+    "@elevenlabs/elevenlabs-js": "2.74.0",
+    "@react-three/fiber": "9.8.2",
+    "@remotion/captions": "4.0.539",
+    "@remotion/cli": "4.0.539",
+    "@remotion/google-fonts": "4.0.539",
+    "@remotion/three": "4.0.539",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.539",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/three": "^0.187.0",
+    "typescript": "^5.6.0"
+  }
+}
