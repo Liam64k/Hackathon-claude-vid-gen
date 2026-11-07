@@ -68,7 +68,7 @@ const S = {
     format: "story", length: 60, topic: "", voiceId: null, customVoice: "", libTab: "projects", skill: null, scriptTab: "lines", lineErrors: [],
     style: "flat", theme: "auto", cast: null, castMode: "random", entry: "generate", hover: null, output: { preset: "tiktok" }, cw: 1920, ch: 1200, fragKind: "Moment", draft: "",
   },
-  connecting: false,
+  acctOpen: false, // the signed-in Claude pill's menu
   dirty: false,
 };
 
@@ -212,8 +212,12 @@ function renderTop() {
   // Replay never calls Claude, so a red "Connect" there only misleads.
   else if (replay) pill = h("span.pill", { title: "Replay plays recorded runs. To use your Claude account, start Studio live: Start Studio.command or npm start." }, "Claude not used");
   else if (!c?.installed) pill = h("button.pill.bad", { onclick: () => go("#/"), title: c?.installFix ?? "" }, h("span.dot"), "Claude Code not installed");
-  else if (c.loggedIn) pill = h("span.pill.ok", { title: `Your own Claude Code login${c.plan ? ` (${c.plan})` : ""}` }, h("span.dot"), `Claude${c.plan ? ` · ${c.plan[0].toUpperCase()}${c.plan.slice(1)}` : ""}`);
-  else if (S.connecting) pill = h("span.pill.wait", {}, h("span.dot"), "Finish sign-in in your browser…");
+  else if (c.loggedIn) pill = h("span.acct", {},
+    h("button.pill.ok", { "aria-expanded": String(!!S.acctOpen), "aria-haspopup": "menu", onclick: () => { S.acctOpen = !S.acctOpen; renderTop(); }, title: "Your own Claude Code login" }, h("span.dot"), `Claude${c.plan ? ` · ${c.plan[0].toUpperCase()}${c.plan.slice(1)}` : ""}`),
+    S.acctOpen ? h("div.acctmenu", { role: "menu" },
+      h("p", {}, "Signed in to Claude Code", c.plan ? h("b", {}, ` · ${c.plan[0].toUpperCase()}${c.plan.slice(1)} plan`) : null),
+      h("button.btn.sm.danger", { role: "menuitem", onclick: signOut }, "Sign out of Claude Code")) : null);
+  else if (connecting()) pill = h("span.pill.wait", { title: "A Terminal window is running Claude Code's sign-in. Approve in the browser, then paste the code shown there." }, h("span.dot"), "Finish sign-in in Terminal…", h("button.pillx", { onclick: cancelConnect, "aria-label": "Cancel sign-in" }, "Cancel"));
   else pill = h("button.pill.bad", { onclick: connect }, h("span.dot"), "Connect Claude");
   const u = st?.usage;
   const job = st?.job;
@@ -257,18 +261,28 @@ function setFeed(open) {
   renderTop();
 }
 
+// Sign-in state comes from the server (it watches `claude auth status`), so a reload or a second tab agrees.
+const connecting = () => !!S.status?.connect?.pending;
 async function connect() {
-  S.connecting = true;
-  renderTop();
   try {
     const r = await api("/api/connect", { method: "POST" });
-    if (r.connected) { S.connecting = false; await loadStatus(); toast("Claude is connected."); }
-    else toast("Anthropic's sign-in opened in your browser. Finish there; Studio turns green by itself.");
-  } catch (e) {
-    S.connecting = false;
-    toast(e.message, true);
-  }
-  renderTop();
+    if (r.connected) toast("Claude is connected.");
+    else if (r.opened) toast("A Terminal window opened. Approve in your browser, then paste the code into the Terminal. Studio turns green by itself.");
+    else toast(`Run this in a terminal to sign in: ${r.command}`);
+  } catch (e) { toast(e.message, true); }
+  await loadStatus();
+  renderMain();
+}
+async function cancelConnect() {
+  try { await api("/api/connect/cancel", { method: "POST" }); } catch { /* the watch stops by itself */ }
+  await loadStatus();
+  renderMain();
+}
+async function signOut() {
+  S.acctOpen = false;
+  if (!confirm("Sign out of Claude Code on this computer? This also signs out the Claude Code VS Code extension and terminal. Studio can't run Claude until you connect again.")) return renderTop();
+  try { await api("/api/logout", { method: "POST" }); toast("Signed out of Claude Code."); } catch (e) { toast(e.message, true); }
+  await loadStatus(true);
   renderMain();
 }
 
@@ -405,6 +419,20 @@ const stageHead = (n, title, lead) => {
     h("h2", {}, title),
     lead ? h("p.lead", {}, lead) : null);
 };
+// "Re-cast with Claude" on an open project.
+const recast = once(async () => {
+  if (!claudeOk()) { toast("Connect Claude first.", true); return connect(); }
+  S.recasting = true; renderMain();
+  try {
+    const r = await api(`/api/projects/${S.route.slug}/cast/claude`, { method: "POST" });
+    toast(r.fallback ? "Claude's answer wasn't usable, so this is a random cast." : `New cast: ${castNames(r.cast)}${r.why ? `. ${r.why}` : ""}`);
+  } catch (e) {
+    if (e.data?.code === "signed_out" || e.data?.code === "not_installed") { toast("Connect Claude first.", true); connect(); }
+    else toast(e.message, true);
+  } finally { S.recasting = false; }
+  await loadDetail(S.route.slug);
+  renderMain();
+});
 // Project facts at the top of every step's inspector.
 const projFacts = (d) => {
   const s = d.state;
@@ -413,13 +441,15 @@ const projFacts = (d) => {
     h("dl.facts", {},
       s.series ? h("div", {}, h("dt", {}, "Series"), h("dd", {}, `Episode ${s.series.episode} of ${s.series.title}`)) : null,
       h("div", {}, h("dt", {}, "Look"), h("dd", {}, styleName(pStyle(s)))),
-      s.cast ? h("div", {}, h("dt", {}, "Cast"), h("dd", {}, castNames(s.cast))) : null,
-      s.cast ? h("div", {}, h("dt", {}, "Place look"), h("dd", {}, themeLabel(s.cast.theme))) : null,
+      s.cast ? h("div", {}, h("dt", {}, "Cast"), h("dd", { title: [s.cast.lead, s.cast.second].map((m) => `${m.name}${m.role ? `, ${m.role}` : ""}`).join(" · ") }, castNames(s.cast))) : null,
+      s.cast ? h("div", {}, h("dt", {}, "Place look"), h("dd", {}, themeLabel(d.castResolved?.theme ?? s.cast.theme))) : null,
       h("div", {}, h("dt", {}, "Posting to"), h("dd", {}, outShape(pOut(s)))),
       h("div", {}, h("dt", {}, "Size"), h("dd.mono", {}, `${pOut(s).width} × ${pOut(s).height}`)),
       len ? h("div", {}, h("dt", {}, "Length"), h("dd.mono", {}, len)) : null,
       s.format ? h("div", {}, h("dt", {}, "Format"), h("dd", {}, FORMAT_FULL[s.format] ?? s.format)) : null,
-      h("div", {}, h("dt", {}, "Mode"), h("dd", {}, s.mode === "replay" ? "Replay (recorded)" : s.mode === "example" ? "Finished example" : "Live"))));
+      h("div", {}, h("dt", {}, "Mode"), h("dd", {}, s.mode === "replay" ? "Replay (recorded)" : s.mode === "example" ? "Finished example" : "Live"))),
+    // re-cast until the storyboard is approved (after that the frames are drawn with this cast)
+    s.cast && !d.example && s.stages.shots.status !== "approved" ? h("button.btn.sm.block", { onclick: recast, disabled: !!S.status?.job || S.recasting, title: "Claude reads the story and picks two characters and the place look" }, S.recasting ? "Claude is casting…" : "Re-cast with Claude") : null);
 };
 
 const working = (stage, extra) => {
@@ -615,7 +645,7 @@ function homeView() {
   const banner = st !== "idea" || !S.status ? null
     : replay ? h("div.banner.warn", {}, h("div.grow", {}, h("b", {}, "Replay mode. "), "Every step plays back a recorded run of the finished example “Ten Minutes Under”. No Claude calls, no API keys needed. Whatever topic you type, the result is that episode."))
     : !c?.installed ? h("div.banner", {}, h("div.grow", {}, h("b", {}, "Claude Code is not installed. "), "Studio uses your own Claude Code as its AI. Install it, then reload this page: ", h("span.kbd", {}, c?.installFix?.replace(/^Install Claude Code:\s*/, "") ?? "")))
-    : !c.loggedIn ? h("div.banner", {}, h("div.grow", {}, h("b", {}, "Connect your Claude account. "), "Studio runs your own Claude Code on this computer. Signing in happens on Anthropic's page; Studio never sees your password or tokens."), h("button.btn.primary.sm", { onclick: connect, disabled: S.connecting }, S.connecting ? "Waiting for sign-in…" : "Connect Claude"))
+    : !c.loggedIn ? h("div.banner", {}, h("div.grow", {}, h("b", {}, "Connect your Claude account. "), "Studio runs your own Claude Code on this computer. Signing in happens in Claude Code's own sign-in (a Terminal window and Anthropic's page); Studio never sees your password, code or tokens."), h("button.btn.primary.sm", { onclick: connect }, connecting() ? "Open sign-in again" : "Connect Claude"))
     : null;
 
   const syncs = [];
@@ -711,6 +741,8 @@ function homeView() {
       const fig = h("div.fig");
       const nameIn = h("input.input", { id: `cn-${which}`, type: "text", maxlength: 20, autocomplete: "off", "aria-label": `${title} name`,
         oninput: (e) => { const v = e.target.value.replace(/[^A-Za-z '-]/g, ""); if (v !== e.target.value) e.target.value = v; cur().name = v; setMode("manual"); } });
+      const roleIn = h("input.input", { id: `cr-${which}`, type: "text", maxlength: 60, autocomplete: "off", placeholder: "Who they are: night-shift nurse, 34", "aria-label": `${title}: who they are`,
+        oninput: (e) => { cur().role = e.target.value; setMode("manual"); } });
       const groups = [];
       const swRow = (label, list, key, valOf, same) => {
         const btns = list.map((o) => h("button.sw-btn", { type: "button", "aria-label": `${title} ${label.toLowerCase()}: ${o.label}`, title: o.label, style: { background: hx(o.hex ?? o.coat) }, onclick: () => edit((m) => { if (key === "coat") Object.assign(m.look, { coat: o.coat, trim: o.trim, pants: o.pants, boots: o.boots, gloves: o.gloves, hatColor: o.hatColor, hatBand: o.hatBand }); else m.look[key] = o.hex; }) }));
@@ -726,12 +758,12 @@ function homeView() {
       const card = h("section.ccard", { "aria-label": title },
         h("div.chead", {}, h("h2", {}, title), h("button.btn.sm", { type: "button", onclick: rand }, "Randomize")),
         h("div.cbody", {}, fig, h("div.cform", {},
-          h("div.crow", {}, h("label.clbl", { for: `cn-${which}` }, "Name"), nameIn),
+          h("div.crow", {}, h("label.clbl", { for: `cn-${which}` }, "Name"), h("div.npair", {}, nameIn, roleIn)),
           swRow("Skin", CD.skin, "skin", null, (o, l) => String(l.skin).toLowerCase() === o.hex.toLowerCase()),
           swRow("Hair", CD.hair, "hair", null, (o, l) => String(l.hair).toLowerCase() === o.hex.toLowerCase()),
           swRow("Coat", CD.coats, "coat", null, (o, l) => String(l.coat).toLowerCase() === o.coat.toLowerCase()),
           chipRow("Hat", CD.hats, "hat"), chipRow("Facial hair", CD.facial, "facial"), chipRow("Coat type", CD.coatKinds, "coatKind"), chipRow("Build", CD.builds, "build"))));
-      const paint = () => { if (document.activeElement !== nameIn) nameIn.value = cur().name; mount(fig, figureSvg(cur().look)); groups.forEach((g) => g()); };
+      const paint = () => { if (document.activeElement !== nameIn) nameIn.value = cur().name; if (document.activeElement !== roleIn) roleIn.value = cur().role ?? ""; mount(fig, figureSvg(cur().look)); groups.forEach((g) => g()); };
       cards.push(paint);
       onSync(paint);
       return card;
@@ -742,12 +774,31 @@ function homeView() {
       body = [screen("castsel", "Choose your cast", "Picking two characters…"), fnav(back("look"), nextBtn("shape"))];
     } else {
       const both = once(async () => { try { S.ui.cast = { ...S.ui.cast, ...(await api(`/api/cast/random?seed=${randSeed()}`)).cast }; setMode("random"); cards.forEach((f) => f()); } catch (e) { toast(e.message, true); } });
-      const sw = h("button.switch", { type: "button", role: "switch", onclick: () => setMode(claude() ? "manual" : "claude") }, h("i"), "Let Claude cast it");
+      const sw = h("button.switch", { type: "button", role: "switch", onclick: () => setMode(claude() ? "manual" : "claude") }, h("i"), "Let Claude cast it after I pick an idea");
       const note = h("p.cast-note", { "aria-live": "polite" }, "Claude picks the cast after you choose an idea.");
+      // Cast right now with Claude, from the idea typed on step 1; the cards stay editable afterwards.
+      const genBtn = h("button.btn.primary", { type: "button" }, "Generate with Claude");
+      const gen = once(async () => {
+        if (!S.ui.topic.trim()) { toast("Write your idea first, so Claude knows who to cast."); go("#/new/idea"); return; }
+        if (!claudeOk()) { toast("Connect Claude first.", true); return connect(); }
+        genBtn.disabled = true; genBtn.textContent = "Claude is casting…";
+        try {
+          const r = await api("/api/cast/claude", { method: "POST", body: { topic: S.ui.topic, format: S.ui.format, theme: S.ui.theme } });
+          S.ui.cast = { lead: r.cast.lead, second: r.cast.second };
+          if (r.cast.theme) S.ui.theme = r.cast.theme;
+          setMode("manual");
+          cards.forEach((f) => f());
+          toast(r.fallback ? "Claude's answer wasn't usable, so this is a random cast." : `${r.cast.lead.name} and ${r.cast.second.name}${r.why ? `: ${r.why}` : ""}`);
+        } catch (e) {
+          if (e.data?.code === "signed_out" || e.data?.code === "not_installed") { toast("Connect Claude first.", true); connect(); }
+          else toast(e.message, true);
+        } finally { genBtn.disabled = false; genBtn.textContent = "Generate with Claude"; }
+      });
+      genBtn.onclick = gen;
       const wrap = h("div.cards", {}, memberCard("lead", "Lead"), memberCard("second", "Second"));
       onSync(() => { sw.setAttribute("aria-checked", String(claude())); wrap.classList.toggle("dim", claude()); note.hidden = !claude(); });
       body = [h("section.fscr.castsel", {}, h("header.fhead", {}, h("h1", {}, "Choose your cast"), h("p.lead", {}, "Two characters star in this video. Tweak them, or roll the dice.")),
-        h("div.casttools", {}, h("button.btn", { type: "button", onclick: both }, "Randomize both"), sw, note), wrap), fnav(back("look"), nextBtn("shape"))];
+        h("div.casttools", {}, genBtn, h("button.btn", { type: "button", onclick: both }, "Randomize both"), sw, note), wrap), fnav(back("look"), nextBtn("shape"))];
     }
   } else if (st === "shape") {
     const presetBtns = {};
@@ -1744,7 +1795,7 @@ function connectEvents() {
   });
   es.addEventListener("cost", (e) => { const ev = JSON.parse(e.data); S.stepCost += ev.cost || 0; if (ev.usage && S.status) S.status.usage = ev.usage; renderTop(); renderFeed(); });
   es.addEventListener("usage", (e) => { const ev = JSON.parse(e.data); if (S.status) S.status.usage = ev.usage; renderTop(); });
-  es.addEventListener("status", async () => { S.connecting = false; await loadStatus(true); renderMain(); });
+  es.addEventListener("status", async () => { await loadStatus(); renderMain(); });
   es.addEventListener("project", () => loadProjects());
   es.addEventListener("now", (e) => {
     const ev = JSON.parse(e.data);
@@ -1790,6 +1841,7 @@ async function loadOptions() {
   if (!token()) return denied();
   renderAll();
   connectEvents();
+  document.addEventListener("click", (e) => { if (S.acctOpen && !e.target.closest(".acct")) { S.acctOpen = false; renderTop(); } });
   await loadOptions();
   await Promise.all([loadStatus(), route(), loadProjects()]);
   // keep the Claude pill honest (e.g. signed out in another terminal)

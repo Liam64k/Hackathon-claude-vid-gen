@@ -105,3 +105,36 @@ test("castMode claude: approving an idea casts with Claude, then the script stil
   assert.notEqual(d.state.stages.script.status, "idle", "the script stage started anyway");
   await idle();
 });
+
+test("Generate with Claude before a project exists (replay): roles, and the place follows the topic", async () => {
+  const r = await call("/api/cast/claude", "POST", { topic: "what to do in a flood at night", format: "story" });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.replay, true);
+  assert.equal(r.body.cast.theme, "storm");
+  assert.equal(r.body.cast.particles, "rain");
+  assert.ok(r.body.cast.lead.role);
+  const kept = await call("/api/cast/claude", "POST", { topic: "what to do in a flood", theme: "desert" });
+  assert.equal(kept.body.cast.theme, "desert", "a place look chosen by hand is kept");
+  assert.equal((await call("/api/cast/claude", "POST", { topic: "" })).status, 400);
+  assert.equal((await call("/api/cast/claude", "POST", { topic: "how to build a bomb" })).status, 400);
+});
+
+test("roles are kept, checked for length and safety, and reach the script prompt", async () => {
+  const { normalizeCast } = await import("../lib/cast-data.mjs");
+  const { safetyIssues } = await import("../lib/validate.mjs");
+  const ok = normalizeCast({ lead: { name: "Ray", role: "the building's janitor, 58", look: look() }, second: { name: "Ivy", look: look({ coat: "navy" }) } }, safetyIssues);
+  assert.deepEqual(ok.errors, []);
+  assert.equal(ok.cast.lead.role, "the building's janitor, 58");
+  assert.equal("role" in ok.cast.second, false);
+  assert.ok(normalizeCast({ lead: { name: "Ray", role: "x".repeat(61), look: look() }, second: { name: "Ivy", look: look() } }).errors.some((e) => /role/.test(e)));
+  const { castText } = await import("../stages/prompts.mjs");
+  assert.match(castText({ cast: ok.cast }), /Ray, the building's janitor, 58/);
+});
+
+test("the casting prompt makes Claude read the skills' casting rules", async () => {
+  const { castPrompt, CAST_SKILL_FILES, CAST_SCHEMA } = await import("../stages/cast.mjs");
+  const p = castPrompt({ topic: "blackout in the city", theme: "auto" });
+  for (const f of CAST_SKILL_FILES) assert.ok(p.includes(f.split(" ")[0]));
+  assert.match(p, /signature coat colour/);
+  assert.ok(CAST_SCHEMA.properties.lead.required.includes("role"));
+});

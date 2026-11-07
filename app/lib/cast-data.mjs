@@ -203,7 +203,11 @@ export function normalizeCast(raw, safety = () => []) {
     else if (safety(name).length) errors.push(`${key}: name is not allowed`);
     const { look, errors: le } = normalizeLook(m?.look);
     for (const e of le) errors.push(`${key}: ${e}`);
-    return { name, look };
+    // optional "who they are" (role first), shown on the Cast screen and given to the script prompt
+    const role = String(m?.role ?? "").replace(/\s+/g, " ").trim();
+    if (role.length > 60) errors.push(`${key}: role must be at most 60 characters`);
+    else if (role && safety(role).length) errors.push(`${key}: role is not allowed`);
+    return role ? { name, role, look } : { name, look };
   };
   const lead = member("lead");
   const second = member("second");

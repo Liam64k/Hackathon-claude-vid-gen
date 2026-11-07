@@ -6,6 +6,8 @@
 //
 // Prompt goes on stdin; cwd = studio root so CLAUDE.md, skills and agents load automatically.
 // Never --bare (it ignores the subscription login). API-key variables are removed from the child env.
+import path from "node:path";
+import { execFile } from "node:child_process";
 import { ROOT } from "../lib/paths.mjs";
 import * as usage from "../lib/usage.mjs";
 import { childEnv, findClaude, INSTALL_HINT } from "../lib/env.mjs";
@@ -134,12 +136,38 @@ export const version = async () => {
   return r.out.trim().split(/\s+/)[0] || null;
 };
 
-// Anthropic's own sign-in flow: `claude auth login` opens the browser; the user finishes there.
-let loginProc = null;
-export const startLogin = (onLine) => {
+// Anthropic's own sign-in flow, in a real terminal window: `claude auth login` asks for the code Anthropic's
+// page shows, and only a terminal can take it. Studio never sees or forwards it (AGENTS.md rule 1).
+// Returns { opened: true } or { opened: false, command } (the user runs the command themselves).
+const LOGIN_SH = path.join(ROOT, "scripts", "claude-login.sh");
+const LOGIN_CMD = path.join(ROOT, "scripts", "claude-login.cmd");
+const shq = (s) => `'${String(s).replace(/'/g, "'\\''")}'`;
+export const startLogin = () => {
   const found = findClaude();
   if (!found) throw Object.assign(new Error("Claude Code is not installed"), { code: "not_installed" });
-  if (loginProc && loginProc.child.exitCode === null) return loginProc;
-  loginProc = run(found.path, [...(found.prefix ?? []), "auth", "login"], { env: childEnv(), onLine, timeoutMs: 10 * 60 * 1000 });
-  return loginProc;
+  const bin = found.prefix?.length ? null : found.path; // node-shim installs: show the command instead
+  const command = `${found.path} auth login`;
+  // no-open (tests, headless): only report the command
+  if (!bin || process.env.STUDIO_NO_OPEN || process.argv.includes("--no-open")) return { opened: false, command };
+  try {
+    if (process.platform === "darwin") {
+      const line = `exec /bin/bash ${shq(LOGIN_SH)} ${shq(bin)}`.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      execFile("osascript", ["-e", `tell application "Terminal" to do script "${line}"`, "-e", 'tell application "Terminal" to activate'], () => {});
+    } else if (process.platform === "win32") {
+      execFile("cmd.exe", ["/c", "start", '"Claude sign-in"', "cmd", "/c", `"${LOGIN_CMD}"`, `"${bin}"`], { windowsVerbatimArguments: true }, () => {});
+    } else {
+      execFile("x-terminal-emulator", ["-e", "bash", LOGIN_SH, bin], (e) => e && console.error("Open a terminal and run:", command));
+    }
+    return { opened: true, command };
+  } catch {
+    return { opened: false, command };
+  }
+};
+
+// Sign out of Claude Code (its own command; Studio touches no credential).
+export const logout = async () => {
+  const found = findClaude();
+  if (!found) throw Object.assign(new Error("Claude Code is not installed"), { code: "not_installed" });
+  const r = await run(found.path, [...(found.prefix ?? []), "auth", "logout"], { env: childEnv(), timeoutMs: 20000 }).done;
+  return { ok: r.code === 0, tail: r.tail.slice(-2) };
 };

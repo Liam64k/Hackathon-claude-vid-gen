@@ -21,7 +21,7 @@ export const capOf = () => { const c = Number(process.env.STUDIO_PLAN_CAP); retu
 
 // Share of the 5-hour window one run of each kind is assumed to take until Studio has measured it.
 // The weekly window moves about a fifth as fast. Deliberately on the high side.
-const DEFAULT_COST = { ideas: 0.06, script: 0.1, shots: 0.12, render: 0.02, titles: 0.02, verify: 0.04, hooks: 0.02, weave: 0.02, cast: 0.02 };
+const DEFAULT_COST = { ideas: 0.06, script: 0.1, shots: 0.12, render: 0.02, titles: 0.02, verify: 0.04, hooks: 0.02, weave: 0.02, cast: 0.04 };
 const WEEK_FACTOR = 0.2;
 
 // local calendar day (not UTC), so "today" resets at the user's midnight

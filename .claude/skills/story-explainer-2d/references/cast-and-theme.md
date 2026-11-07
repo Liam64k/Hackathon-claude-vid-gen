@@ -9,3 +9,12 @@ The ids are code names only. Each project stores `state.cast` = `{lead:{name,loo
   write the place to match (e.g. nightCity: open ground = city square, shacks = kiosks, pines = skyline).
 - Keep each person on the same figure id in every shot; pick particles that fit the theme.
 - `cast: null` = legacy project: puppets are named per story.
+
+## Casting (who and what they wear)
+- Two people, two jobs in the story: the lead is followed; the second is helped, warned, followed or argued with.
+- Role first, then name: "Ray, the building's janitor". A role is age + job or relation, and it is said early.
+- Identity by colour and silhouette (visual-style.md §1): one signature coat colour each, clearly different
+  hues; different build and different hat (or none). Never two near-identical figures.
+- Clothes fit the place, the weather and the job: no puffy coat and trapper hat on a summer evening.
+- Names fit the people and the place; varied, never stereotyped, never real or famous people.
+- Place look and particles follow the setting (a flood is storm + rain, a fallout story is fallout + ash).

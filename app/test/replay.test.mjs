@@ -38,9 +38,17 @@ before(async () => {
   const { start } = await import("../server.mjs");
   srv = await start();
 });
-after(() => {
+// every project this file creates; all are deleted at the end (a test may reuse `slug` for its own)
+const made = [];
+after(async () => {
+  await fetch(`${base()}/api/cancel`, { method: "POST", headers: { "x-studio-token": srv.token } }).catch(() => {});
+  for (let i = 0; i < 100; i++) {
+    const st = await fetch(`${base()}/api/status`, { headers: { "x-studio-token": srv.token } }).then((r) => r.json()).catch(() => ({}));
+    if (!st.job) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
   srv?.server.close();
-  if (slug) rmSync(path.join(EPISODES, slug), { recursive: true, force: true });
+  for (const s of made) rmSync(path.join(EPISODES, s), { recursive: true, force: true });
 });
 
 test("replay completes all stages with zero Claude calls", { timeout: 120000 }, async () => {
@@ -48,6 +56,7 @@ test("replay completes all stages with zero Claude calls", { timeout: 120000 }, 
   assert.equal(st.mode, "replay");
   const created = await call("/api/projects", "POST", { surprise: true, format: "story", length: 90 });
   slug = created.state.slug;
+  made.push(slug);
   assert.equal(created.state.mode, "replay");
 
   let d = await waitFor("ideas", "review");
@@ -86,6 +95,7 @@ test("replay completes all stages with zero Claude calls", { timeout: 120000 }, 
 test("voice provider none: captions only, empty audio.json, render not blocked", { timeout: 60000 }, async () => {
   const created = await call("/api/projects", "POST", { surprise: true, format: "story", length: 90, voice: { provider: "none" } });
   const s2 = created.state.slug;
+  made.push(s2);
   try {
     assert.equal(created.state.voice.provider, "none");
     slug = s2;
@@ -104,7 +114,6 @@ test("voice provider none: captions only, empty audio.json, render not blocked",
     const r = await waitFor("render", "review", 60000);
     assert.ok(r.outputs.phone);
   } finally {
-    rmSync(path.join(EPISODES, s2), { recursive: true, force: true });
     slug = undefined;
   }
 });

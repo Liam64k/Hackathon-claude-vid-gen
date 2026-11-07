@@ -137,7 +137,7 @@ const THEME_PLACE = {
 export const castText = (p) => {
   const c = p?.cast;
   if (!c?.lead) return "";
-  const who = (k, r) => c[k] ? `${r} = ${c[k].name} (${describeLook(c[k].look)})` : "";
+  const who = (k, r) => c[k] ? `${r} = ${c[k].name}${c[k].role ? `, ${c[k].role}` : ""} (${describeLook(c[k].look)})` : "";
   return `CAST (fixed for this episode; use these names, not new ones): ${[who("lead", "the lead, figure id \"eli\""), who("second", "the second, figure id \"brother\"")].filter(Boolean).join("; ")}.`;
 };
 // "auto" place looks are worked out from the topic (same rule as lib/castfile.mjs).

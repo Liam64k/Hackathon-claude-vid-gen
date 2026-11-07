@@ -16,7 +16,7 @@ import { setElevenKey, elevenKeySource, redact } from "./lib/secrets.mjs";
 import { MODE, assertIdle, registerStage, startStage, startTask, cancel, current } from "./jobs.mjs";
 import { httpError } from "./lib/errors.mjs";
 import { verifyFacts } from "./stages/extras.mjs";
-import { startLogin } from "./engine/claude.mjs";
+import { logout, startLogin } from "./engine/claude.mjs";
 import { checkClaude, runDoctor } from "./doctor.mjs";
 import * as ideas from "./stages/ideas.mjs";
 import * as script from "./stages/script.mjs";
@@ -138,6 +138,33 @@ const claudeStatus = async (fresh = false) => {
   return claudeCache.data;
 };
 
+// ---- Claude sign-in -------------------------------------------------------------------------------
+// The sign-in runs in a Terminal window (engine/claude.mjs); Studio only watches `claude auth status`
+// until it reports signed in. Each Connect starts over; Cancel or 10 minutes stop the watch.
+let connect = { pending: false, startedAt: null, poll: null };
+const connectInfo = () => ({ pending: connect.pending, startedAt: connect.startedAt });
+const stopConnect = () => {
+  clearInterval(connect.poll);
+  const was = connect.pending;
+  connect = { pending: false, startedAt: null, poll: null };
+  if (was) bus.send("status", { connect: connectInfo() });
+};
+const startConnect = () => {
+  stopConnect();
+  const t0 = Date.now();
+  connect = { pending: true, startedAt: t0, poll: null };
+  connect.poll = setInterval(async () => {
+    try {
+      const s = await claudeStatus(true);
+      if (s.loggedIn) { stopConnect(); bus.send("status", { claude: s, connect: connectInfo() }); bus.send("activity", { stage: "connect", text: "Claude connected" }); }
+      else if (Date.now() - t0 > 10 * 60 * 1000) stopConnect();
+    } catch (err) {
+      console.error("sign-in check failed:", err.message);
+    }
+  }, 2500);
+  bus.send("status", { connect: connectInfo() });
+};
+
 // ---- project detail --------------------------------------------------------------------------------
 const projectDetail = (slug) => {
   if (slug === EXAMPLE_SLUG) return exampleDetail();
@@ -228,7 +255,8 @@ const claudeCast = async (slug) => {
   const idea = store.readJson(path.join(episodeDir(slug), "ideas.json"))?.ideas?.[s.pick ?? 0] ?? null;
   const lines = (store.readJson(path.join(episodeDir(slug), "lines.json")) ?? []).map((l) => l.text);
   bus.send("activity", { slug, stage: "script", text: "Claude is casting the characters and the place", tool: "cast" });
-  const got = await castWithClaude({ topic: s.title || s.topic, idea: idea && { title: idea.title, premise: idea.premise, world: idea.world }, lines }, { mode: MODE, seed: slug });
+  const theme = s.castMode !== "claude" ? s.cast?.theme : undefined; // a place look chosen by hand stays
+  const got = await castWithClaude({ topic: s.title || s.topic, format: store.FORMATS[s.format], idea: idea && { title: idea.title, premise: idea.premise, world: idea.world }, lines, theme }, { mode: MODE, seed: slug });
   const { why, replay, fallback, ...cast } = got;
   store.update(slug, (x) => {
     const keepTheme = x.cast?.theme && x.cast.theme !== "auto" && x.castMode !== "claude";
@@ -282,42 +310,42 @@ const routes = async (req, res, url) => {
 
   if (p === "/api/status" && m === "GET") {
     const claude = MODE === "replay" ? { ...(await claudeStatus()), replayNote: "Replay mode makes no Claude calls." } : await claudeStatus(url.searchParams.get("fresh") === "1");
-    return json(res, 200, { mode: MODE, claude, usage: usage.get(), job: current(), eleven: { keySource: elevenKeySource(), placeholder: voice.placeholderEngine() }, pack: { id: "winter-lake", name: "Winter Lake" }, platform: process.platform });
+    return json(res, 200, { mode: MODE, claude, connect: connectInfo(), usage: usage.get(), job: current(), eleven: { keySource: elevenKeySource(), placeholder: voice.placeholderEngine() }, pack: { id: "winter-lake", name: "Winter Lake" }, platform: process.platform });
   }
   if (p === "/api/doctor" && m === "GET") return json(res, 200, { rows: await runDoctor({ quick: url.searchParams.get("quick") === "1" }) });
 
   if (p === "/api/connect" && m === "POST") {
     const st = await claudeStatus(true);
     if (!st.installed) return fail(res, 400, "Claude Code is not installed.", { code: "not_installed", fix: st.installFix });
-    if (st.loggedIn) return json(res, 200, { connected: true, claude: st });
-    try {
-      const lp = startLogin((line) => {
-        const urlMatch = /(https:\/\/\S+)/.exec(line);
-        bus.send("log", { stage: "connect", text: urlMatch ? `Sign-in page: ${urlMatch[1]}` : redact(line).slice(0, 200), url: urlMatch?.[1] ?? null });
-      });
-      bus.send("activity", { stage: "connect", text: "Opening Anthropic's sign-in in your browser…" });
-      // Poll until the official login completes (or gives up).
-      const t0 = Date.now();
-      const poll = setInterval(async () => {
-        try {
-          const s = await claudeStatus(true);
-          if (s.loggedIn || Date.now() - t0 > 10 * 60 * 1000) {
-            clearInterval(poll);
-            bus.send("status", { claude: s });
-            if (s.loggedIn) { bus.send("activity", { stage: "connect", text: "Claude connected" }); lp.kill(); }
-          }
-        } catch (err) {
-          if (Date.now() - t0 > 10 * 60 * 1000) clearInterval(poll);
-          console.error("sign-in check failed:", err.message);
-        }
-      }, 2500);
-      return json(res, 202, { connected: false, pending: true });
-    } catch (e) {
-      return fail(res, 500, e.message);
-    }
+    if (st.loggedIn) { stopConnect(); return json(res, 200, { connected: true, claude: st }); }
+    const r = startLogin();
+    startConnect();
+    bus.send("activity", { stage: "connect", text: r.opened ? "A Terminal window opened for Claude Code's sign-in. Approve in the browser, paste the code there." : `Run this in a terminal to sign in: ${r.command}` });
+    return json(res, 202, { connected: false, pending: true, opened: r.opened, command: r.opened ? null : r.command });
+  }
+  if (p === "/api/connect/cancel" && m === "POST") { stopConnect(); return json(res, 200, { pending: false }); }
+  if (p === "/api/logout" && m === "POST") {
+    assertIdle();
+    stopConnect();
+    const r = await logout();
+    const st = await claudeStatus(true);
+    bus.send("status", { claude: st, connect: connectInfo() });
+    if (st.loggedIn) return fail(res, 500, `Claude Code did not sign out. ${r.tail.join(" ")}`.trim());
+    bus.send("activity", { stage: "connect", text: "Signed out of Claude Code" });
+    return json(res, 200, { signedOut: true, claude: st });
   }
 
   if (p === "/api/options" && m === "GET") return json(res, 200, { styles: store.STYLES, presets: store.OUTPUT_PRESETS, ratios: store.RATIOS, length: { min: store.MIN_SECONDS, max: store.MAX_SECONDS, presets: store.PRESET_LENGTHS }, scenes: catalogScenes(), castData: castData() });
+  // Cast with Claude before a project exists (the Cast screen's "Generate with Claude").
+  if (p === "/api/cast/claude" && m === "POST") {
+    const b = await readBody(req);
+    const topic = String(b.topic ?? "").trim().slice(0, 300);
+    if (!topic) return fail(res, 400, "Write your idea first, so Claude knows who to cast.");
+    const bad = unsafeTopic(topic);
+    if (bad) throw bad;
+    const { why, replay, fallback, ...cast } = await castWithClaude({ topic, format: store.FORMATS[b.format], theme: b.theme }, { mode: MODE, seed: topic });
+    return json(res, 200, { cast, why: why ?? null, replay: !!replay, fallback: !!fallback });
+  }
   if (p === "/api/cast/random" && m === "GET") return json(res, 200, { cast: randomCast(url.searchParams.get("seed") || Math.random().toString(36)) });
 
   // ---- inspiration boards ----
@@ -378,6 +406,8 @@ const routes = async (req, res, url) => {
     if (s.entry === "own") {
       script.seedOwnProject(s.slug, topic);
       bus.send("stage", { slug: s.slug, stage: "script", status: "review" });
+      // own script: there is no idea to approve, so Claude casts now (in the background, never blocking)
+      if (s.castMode === "claude") claudeCast(s.slug).then(() => bus.send("stage", { slug: s.slug, stage: "script", status: "review" })).catch((e) => bus.send("activity", { slug: s.slug, stage: "script", text: `Casting skipped (${e.message}); keeping the current cast.`, level: "warn" }));
     } else startStage(s.slug, "ideas", {});
     return json(res, 201, projectDetail(s.slug));
   }
