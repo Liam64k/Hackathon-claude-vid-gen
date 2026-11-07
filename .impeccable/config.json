@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "fraunces",
+        "createdAt": "2026-11-07T20:31:49.843Z",
+        "reason": "Fraunces is the Paper cut-out look's own preview font, part of the user-approved canvas design (style buttons drawn in their own look)"
+      }
+    ]
+  }
+}

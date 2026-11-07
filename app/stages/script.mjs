@@ -6,7 +6,7 @@ import { APP, EXAMPLE_DIR, episodeDir, rel } from "../lib/paths.mjs";
 import { readJson, writeJson } from "../lib/store.mjs";
 import { validateLines, wordCount } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
-import { PACK_BRIEF, PREAMBLE, formatText, lengthText, lineText } from "./prompts.mjs";
+import { PACK_BRIEF, PREAMBLE, formatText, lengthText, lineText, styleText } from "./prompts.mjs";
 
 export const files = (slug) => {
   const d = episodeDir(slug);
@@ -21,6 +21,7 @@ STAGE 2 — SCRIPT + BEAT BOARD for the approved idea. Episode slug: ${p.slug}
 Approved idea: ${JSON.stringify(idea)}
 Format: ${formatText(p.format)}
 Length: ${lengthText(p.length)}
+${styleText(p.style)}
 
 ${PACK_BRIEF}
 

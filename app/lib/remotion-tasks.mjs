@@ -1,6 +1,6 @@
 // Mechanical Remotion runs (same commands as package.json scripts, invoked through node directly so they
 // work without sh/swift on every platform): storyboard, render, phone copy, cover, ffprobe, typecheck.
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { OUT, ROOT } from "./paths.mjs";
 import { contactSheet } from "./png.mjs";
@@ -11,6 +11,32 @@ const progressOf = (line) => {
   return m ? { phase: m[1].toLowerCase(), done: Number(m[2]), total: Number(m[3]) } : null;
 };
 export const parseProgress = progressOf;
+
+// --- output size: src/format.json is read by src/Root.tsx for the Episode composition ---
+export const DEFAULT_FORMAT = { width: 1080, height: 1920 };
+export const FORMAT_FILE = path.join(ROOT, "src", "format.json");
+
+// Valid even integer dimensions, else the 9:16 default (old projects have no `output`).
+export const normalizeFormat = (o) => {
+  const ok = (n) => Number.isInteger(n) && n >= 2 && n <= 8192;
+  if (!o || !ok(o.width) || !ok(o.height)) return { ...DEFAULT_FORMAT };
+  return { width: o.width - (o.width % 2), height: o.height - (o.height % 2) };
+};
+export const writeFormat = (o, file = FORMAT_FILE) => {
+  const f = normalizeFormat(o);
+  writeFileSync(file, JSON.stringify(f) + "\n");
+  return f;
+};
+export const restoreFormat = (file = FORMAT_FILE) => writeFormat(DEFAULT_FORMAT, file);
+export const readFormat = (file = FORMAT_FILE) => {
+  try { return normalizeFormat(JSON.parse(readFileSync(file, "utf8"))); } catch { return { ...DEFAULT_FORMAT }; }
+};
+// Phone-copy size: long side at most 1920, aspect kept, even dimensions.
+export const phoneSize = ({ width, height }, max = 1920) => {
+  const k = Math.min(1, max / Math.max(width, height));
+  const even = (n) => Math.max(2, Math.round((n * k) / 2) * 2);
+  return { width: even(width), height: even(height) };
+};
 
 export const typecheck = async ({ onCancel } = {}) => {
   const p = tsc(["--noEmit", "-p", path.join(ROOT, "tsconfig.json")], { keep: 60, timeoutMs: 5 * 60 * 1000 });
@@ -54,7 +80,7 @@ export const renderEpisode = async ({ onProgress, onCancel, out = path.join(OUT,
 
 // Same arguments as `npm run phone`.
 export const phoneCopy = async ({ onCancel, input = path.join(OUT, "episode.mp4"), out = path.join(OUT, "episode-phone.mp4") } = {}) => {
-  const p = remotion(["ffmpeg", "-y", "-i", input, "-c:v", "libx264", "-crf", "26", "-preset", "medium", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", out], { keep: 15, timeoutMs: 20 * 60 * 1000 });
+  const p = remotion(["ffmpeg", "-y", "-i", input, "-vf", "scale='if(gte(iw,ih),min(iw,1920),-2)':'if(gte(iw,ih),-2,min(ih,1920))'", "-c:v", "libx264", "-crf", "26", "-preset", "medium", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", out], { keep: 15, timeoutMs: 20 * 60 * 1000 });
   onCancel?.(p.kill);
   const r = await p.done;
   return { ok: r.code === 0 && existsSync(out), tail: r.tail.slice(-10), file: out, mb: existsSync(out) ? statSync(out).size / 1e6 : 0 };

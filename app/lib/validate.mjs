@@ -9,8 +9,18 @@ import { lineRange, wordRange } from "./store.mjs";
 // ---- safety (BUILD-PROMPT §3.7) -------------------------------------------------------------------
 // Survival topics: safe, widely known advice only. No chemistry, weapons, medicine doses, live
 // electricity, gore. Used on the topic before any Claude run and on every script line after.
+// "bomb" is only a scenario word when it is a nuclear/atomic one ("what to do if a nuclear bomb goes off")
+// or a "bomb cyclone" storm, and never when the text is about making or building one.
+const unsafeBomb = (s) => {
+  const t = s.replace(/\bbomb cyclones?\b/gi, "");
+  if (!/\bbomb/i.test(t)) return false;
+  if (/\b(make|making|build|building|assemble|assembling|construct\w*|diy)\b(\s+\S+){0,3}\s+bombs?\b|\bbomb[- ]?making\b/i.test(t)) return true;
+  const bombs = t.match(/\b\w+\s+bombs?\b/gi) ?? [];
+  return !bombs.every((b) => /^(nuclear|atomic)\s/i.test(b)) || /^\s*bombs?\b/i.test(t);
+};
 const UNSAFE = [
-  [/\b(bomb(?!\s+cyclone)|explosive|detonat|gunpowder|thermite|napalm|molotov)\w*/i, "explosives"], // "bomb cyclone" is a winter storm
+  [/\b(explosive|detonat|gunpowder|thermite|napalm|molotov)\w*/i, "explosives"],
+  [(s) => unsafeBomb(s), "explosives"],
   [/\b(gun|rifle|pistol|firearm|ammo|ammunition|shoot(ing)? (someone|people)|weapon)s?\b/i, "weapons"],
   // (carbon-monoxide *poisoning* in an ice shack is widely known safety advice, so "poisoning" is allowed)
   [/\b(make|making|brew|brewing) (a )?poison\b|\b(chlorine gas|bleach (and|\+) ammonia|mix(ing)? (household )?chemicals|synthesi[sz]e)\b/i, "chemistry / poisons"],
@@ -21,7 +31,7 @@ const UNSAFE = [
 ];
 export const safetyIssues = (text) => {
   const s = String(text ?? "");
-  return UNSAFE.filter(([re]) => re.test(s)).map(([, label]) => label);
+  return UNSAFE.filter(([re]) => (typeof re === "function" ? re(s) : re.test(s))).map(([, label]) => label);
 };
 
 // ---- ideas ---------------------------------------------------------------------------------------

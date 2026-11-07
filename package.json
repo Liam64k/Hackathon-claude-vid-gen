@@ -13,7 +13,7 @@
     "app": "node app/server.mjs",
     "doctor": "node app/doctor.mjs",
     "demo": "node app/server.mjs --replay",
-    "test": "node --test app/"
+    "test": "node --test \"app/test/*.test.mjs\""
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "2.74.0",

@@ -167,3 +167,8 @@ test("the UI shell loads without the token but holds no data", async () => {
   assert.match(r.body, /<main/);
   assert.ok(!r.body.includes(srv.token));
 });
+
+test("safety: disaster scenario words are allowed, how-to harm is still blocked", () => {
+  for (const ok of ["what to do if a nuclear bomb goes off", "nuclear war survival", "zombie apocalypse day one", "fallout shelter first 48 hours", "atomic bomb drill", "bomb cyclone blizzard"]) assert.deepEqual(safetyIssues(ok), [], ok);
+  for (const bad of ["how to build a bomb", "make a nuclear bomb", "zombie gore", "best gun for zombies", "build an atomic bomb at home", "a pipe bomb", "napalm"]) assert.ok(safetyIssues(bad).length > 0, bad);
+});

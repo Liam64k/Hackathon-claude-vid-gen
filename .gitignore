@@ -7,3 +7,7 @@ app/.runtime/
 out/storyboard/
 # full-resolution renders are large (80+ MB); the phone copy next to them is committed
 episodes/*/episode.mp4
+
+# Local data and tool caches
+episodes/_boards/
+.impeccable/hook.cache.json

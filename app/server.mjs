@@ -22,6 +22,9 @@ import * as script from "./stages/script.mjs";
 import * as shots from "./stages/shots.mjs";
 import * as voice from "./stages/voice.mjs";
 import * as render from "./stages/render.mjs";
+import * as boards from "./lib/boards.mjs";
+import { weave } from "./stages/weave.mjs";
+import { safetyIssues } from "./lib/validate.mjs";
 
 for (const [id, mod] of Object.entries({ ideas, script, shots, voice, render })) registerStage(id, mod);
 
@@ -263,13 +266,48 @@ const routes = async (req, res, url) => {
     }
   }
 
+  if (p === "/api/options" && m === "GET") return json(res, 200, { styles: store.STYLES, presets: store.OUTPUT_PRESETS, ratios: store.RATIOS, length: { min: store.MIN_SECONDS, max: store.MAX_SECONDS, presets: store.PRESET_LENGTHS } });
+
+  // ---- inspiration boards ----
+  if (p === "/api/boards" && m === "GET") return json(res, 200, { boards: boards.list() });
+  if (p === "/api/boards" && m === "POST") return json(res, 201, boards.create(await readBody(req)));
+  if ((mm = /^\/api\/boards\/([a-f0-9]{10})(?:\/(fragments|weave|project)(?:\/([a-f0-9]{10}))?)?$/.exec(p))) {
+    const [, id, sub, fid] = mm;
+    const board = () => boards.get(id);
+    if (!board()) return fail(res, 404, "No such board");
+    if (!sub && m === "GET") return json(res, 200, board());
+    if (!sub && m === "PATCH") return json(res, 200, boards.rename(id, (await readBody(req)).title));
+    if (sub === "fragments" && !fid && m === "POST") {
+      const b = await readBody(req);
+      if (safetyIssues(b.text).length) return fail(res, 400, `That touches ${safetyIssues(b.text).join(", ")}, which Studio does not make videos about.`, { code: "unsafe_topic" });
+      return json(res, 200, boards.addFragment(id, b));
+    }
+    if (sub === "fragments" && fid && m === "DELETE") return json(res, 200, boards.removeFragment(id, fid));
+    if (sub === "weave" && m === "POST") {
+      const story = await weave(board().fragments, { mode: MODE });
+      return json(res, 200, boards.setStory(id, story));
+    }
+    if (sub === "project" && m === "POST") {
+      const b = await readBody(req);
+      const story = board().story;
+      if (!story) return fail(res, 409, "Weave the board into a story first.");
+      if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
+      const topic = `${story.title}: ${story.logline}`.slice(0, 300);
+      const seed = `${topic}\n${story.beats.map((x, i) => `${i + 1}. ${x.part}: ${x.text}`).join("\n")}`;
+      const s = store.createProject({ topic, format: b.format, length: b.length, style: b.style, output: b.output, seed, mode: MODE });
+      bus.send("project", { slug: s.slug });
+      startStage(s.slug, "ideas", {});
+      return json(res, 201, projectDetail(s.slug));
+    }
+  }
+
   if (p === "/api/projects" && m === "GET") return json(res, 200, { projects: store.list() });
   if (p === "/api/projects" && m === "POST") {
     const b = await readBody(req);
     const topic = String(b.topic ?? "").trim();
     if (!b.surprise && !topic) return fail(res, 400, "Type a topic or press Surprise me.");
     if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
-    const s = store.createProject({ topic, surprise: !!b.surprise, format: b.format, length: b.length, mode: MODE });
+    const s = store.createProject({ topic, surprise: !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE });
     bus.send("project", { slug: s.slug });
     startStage(s.slug, "ideas", {});
     return json(res, 201, projectDetail(s.slug));

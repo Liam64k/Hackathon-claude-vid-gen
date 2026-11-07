@@ -10,13 +10,14 @@ import { checkout, saveCurrent, EXAMPLE_BUILD } from "../lib/workspace.mjs";
 import { storyboard, typecheck } from "../lib/remotion-tasks.mjs";
 import { StageError } from "../jobs.mjs";
 import { sleep } from "../engine/replay.mjs";
-import { PREAMBLE, packCatalog } from "./prompts.mjs";
+import { PREAMBLE, packCatalog, styleText, outputText } from "./prompts.mjs";
 import { files as scriptFiles } from "./script.mjs";
 
 export const prompt = (p, lines) => `${PREAMBLE}
 
 STAGE 3 — SHOTS. Turn the approved script and beat board into src/shots.ts for the Winter Lake pack.
 Episode slug: ${p.slug}
+${styleText(p.style)}${outputText(p.output) ? `\n${outputText(p.output)}` : ""}
 
 APPROVED NARRATION — must become LINES exactly (same order, same text, same highlight arrays):
 ${JSON.stringify(lines, null, 1)}

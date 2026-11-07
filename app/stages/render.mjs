@@ -4,7 +4,7 @@ import path from "node:path";
 import { copyFileSync, existsSync, rmSync, statSync } from "node:fs";
 import { OUT, episodeDir, rel } from "../lib/paths.mjs";
 import { checkout } from "../lib/workspace.mjs";
-import { cover, phoneCopy, probe, renderEpisode } from "../lib/remotion-tasks.mjs";
+import { cover, phoneCopy, probe, renderEpisode, restoreFormat, writeFormat } from "../lib/remotion-tasks.mjs";
 import { StageError } from "../jobs.mjs";
 import { sleep } from "../engine/replay.mjs";
 import { EXAMPLE_BUILD } from "../lib/workspace.mjs";
@@ -43,8 +43,14 @@ export const run = async (ctx) => {
   checkout(ctx.slug);
   // never offer an older run's files as this run's downloads
   for (const f of [o.mp4, o.phone, o.cover, o.titles]) rmSync(f, { force: true });
-  ctx.activity("Rendering the episode with Remotion (1080×1920, 30 fps)", { tool: "render" });
-  const r = await renderEpisode({ onProgress: (v, l) => ctx.progress(v, l), onCancel: ctx.onCancel });
+  const fmt = writeFormat(ctx.project().output);
+  ctx.activity(`Rendering the episode with Remotion (${fmt.width}×${fmt.height}, 30 fps)`, { tool: "render" });
+  let r;
+  try {
+    r = await renderEpisode({ onProgress: (v, l) => ctx.progress(v, l), onCancel: ctx.onCancel });
+  } finally {
+    restoreFormat();
+  }
   ctx.checkAborted();
   if (!r.ok) throw new StageError("render", "The render failed. The last log lines are below; press Retry.", { tail: r.tail });
   copyFileSync(r.file, o.mp4);

@@ -9,12 +9,13 @@ import { completedItems } from "../engine/parse.mjs";
 import { IDEAS_SCHEMA, safetyIssues, validateIdeas } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
 import { sleep } from "../engine/replay.mjs";
-import { PACK_BRIEF, PREAMBLE, formatText, lengthText, pastIdeas, pickAngles } from "./prompts.mjs";
+import { PACK_BRIEF, PREAMBLE, formatText, styleText, lengthText, pastIdeas, pickAngles } from "./prompts.mjs";
 
 export const prompt = (p, angles = pickAngles(5), past = pastIdeas(p.slug)) => `${PREAMBLE}
 
 STAGE 1 — IDEAS for a vertical (9:16) narrated 2D survival short.
-${p.surprise ? "Topic: SURPRISE ME — pick the five strongest premises yourself." : `Topic from the user: ${JSON.stringify(p.topic)}. If it does not fit the art pack, keep its spirit and move it onto the frozen lake (say so in "risk").`}
+${p.surprise ? "Topic: SURPRISE ME — pick the five strongest premises yourself." : `Topic from the user: ${JSON.stringify(p.topic)}. Keep the user's scenario; show it with this pack's devices (say in "risk" what is adapted).`}${p.seed ? `\nBuild idea 1 on this story outline:\n${p.seed}\nIdeas 2-5 are variations of it.` : ""}
+${styleText(p.style)}
 Format: ${formatText(p.format)}
 Length: ${lengthText(p.length)}
 
@@ -74,7 +75,7 @@ export const run = async (ctx) => {
   }
 
   const unsafe = safetyIssues(p.topic);
-  if (unsafe.length) throw new StageError("unsafe_topic", `That topic touches ${unsafe.join(", ")}, which Studio does not make videos about. Try a winter or cold-water survival topic.`);
+  if (unsafe.length) throw new StageError("unsafe_topic", `That topic touches ${unsafe.join(", ")}, which Studio does not make videos about. Try a survival or disaster-preparedness topic.`);
 
   const spec = { model: "opus", effort: "high", allowedTools: ["Read"], budget: 1.5, thinkingText: "Claude is weighing premises, hooks and twists", jsonSchema: IDEAS_SCHEMA, timeoutMs: 8 * 60 * 1000 };
   let res = await ctx.claude({ ...spec, prompt: prompt(p), onPartial: streamCards(ctx) });

@@ -45,6 +45,7 @@ clarity, glow and constant change.
 5. **GATE 1** — show the user premise, script and beat board. Wait for approval.
 6. **Build** — art per `references/visual-style.md`, motion per `references/animation.md`, code
    layout per `references/project-structure.md`. Reuse components in `src/art`, `src/overlay`.
+   Look / visual style: see references/styles.md (read only the chosen look's section).
 7. **Storyboard** — `npm run storyboard` (one frame per shot into `out/storyboard.png`). Look at
    every frame yourself and fix it before showing anyone. `references/qa.md`
 8. **GATE 2** — user approves the storyboard. Then give them the narration as ONE block with a
