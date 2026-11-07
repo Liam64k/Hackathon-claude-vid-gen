@@ -102,6 +102,6 @@ test("idea prompts vary: random angles and past ideas are named", async () => {
   const p = prompt({ slug: "x", surprise: true, format: "story", length: 45 }, ["angle A", "angle B", "c", "d", "e"], ["Don't Run to Him — premise"]);
   assert.match(p, /1\. angle A/);
   assert.match(p, /Don't Run to Him/);
-  assert.match(p, /At most ONE idea/);
+  assert.match(p, /At most TWO ideas may be set on ice/);
   assert.match(p, /~45 s/);
 });

@@ -20,14 +20,15 @@ export const SYSTEM = [
 
 export const packCatalog = () => readFileSync(path.join(APP, "pack-catalog.json"), "utf8");
 
-// Short description of what the Winter Lake pack can show (for idea and script writing).
-export const PACK_BRIEF = `ART PACK "Winter Lake" (fixed; no new art can be drawn). TOPICS are open: any survival, disaster or preparedness scenario that is safe to teach — nuclear war and fallout shelters, a zombie outbreak (told as fiction that teaches real preparedness), blackouts, floods, wildfires, storms, winter and cold water. The scenes ALWAYS come from this pack, so reuse its views, figures, HUD pills and cards as story devices (the red shack can be a shelter or bunker, HUD pills can be countdowns, the SIDE view can be a street or a horizon) and never claim art that does not exist.
-- One frozen lake at sunset → blue hour → night, seen four ways: SIDE view (pine shore, three ice-fishing shacks, the brother's red shack, a footprint trail, a creek mouth with thin ice, a hole that can crack open), CUT cross-section under the ice (ice thickness ruler, moving current, trapped air in a jacket, a person in the water), TOP map view (shore, creek, shacks, footprints, the hole, arrows, a runner's path), and a boot-print close-up.
-- Two figure rigs: "eli" (adult, orange jacket, ice picks around the neck) and "brother" (a second adult). These are only the drawings: the story may name them anything and make them anyone (friends, a parent, a coworker, a neighbour, a stranger, a ranger). Either can be the hero, the victim or the one who makes the mistake; one figure alone is fine. Only the HUD pill reads "BROTHER … M", so use it only when the second person really is a brother. Poses include walking, running, standing, in the water, arms on the ice, kicking flat, sliding on the stomach, lying/rolling, panic and a red dashed "mistake" ghost.
-- Story devices: callouts with arrows, stamps ("STEP 1"), tags, speech bubbles, a freeze-frame blue "paused" look, white flash, whip-zoom, shake, snow.
-- HUD pills: a December clock (DEC · h:mm), an ice-thickness pill, a water-temperature/in-water timer and a 1-10-1 phase strip, a "brother distance" pill.
-- Cards: an angle meter (generic), a swatch chip with custom text (generic), the 1-10-1 card, a 911-call card, a Minnesota DNR ice-thickness ladder, a title card and a "PART 2" end card that both have fixed text.
-Keep the user's scenario and show it with these devices. Winter and cold water map directly (falling through the ice is only one of many: whiteouts, frostbite, hypothermia hours later, a stalled walk home, a dog on the ice, pressure ridges, shack heaters and fresh air, a vehicle on the ice, spring thaw, thin ice by creeks).`;
+// What the Winter Lake pack can show. The STORY comes from the topic; the pack only supplies the drawings,
+// so this brief leads with "write the topic's story" and treats the lake as a set to borrow, never as the
+// setting. (Earlier versions led with the lake, and every idea ended up being someone on the ice.)
+export const PACK_BRIEF = `HOW STORY AND ART FIT TOGETHER: write the story the TOPIC asks for (any safe survival, disaster or preparedness scenario: nuclear war and fallout shelters, a zombie outbreak told as fiction that teaches real preparedness, blackouts, floods, wildfires, storms, heat, getting lost, winter and cold water). Its setting, characters and names come from the topic, never from the art. Only winter and cold-water topics are set on ice.
+The drawings come from one fixed ART PACK, "Winter Lake" (no new art can be drawn). Later stages borrow it as a stage set: the red shack becomes a shelter, bunker or house; the shore and pines become a street edge or a horizon; the night sky becomes a blackout; stamps, tags, deltas, callouts and diagrams carry the countdowns, supplies and rules. Never claim art that does not exist, and note in "risk" how the topic will be shown with this set.
+- Views: a SIDE view (pine shore, three small shacks, a red shack, a trail of footprints, open flat ground), a CUT cross-section (layers, a ruler, moving water), a TOP map view (shore, paths, buildings, arrows, a route) and a footprint close-up. Times of day: sunset, blue hour, night.
+- Two figure drawings, "eli" (adult, orange jacket) and "brother" (a second adult). They are only puppets: name and cast them for THIS story (friends, a parent, a coworker, a neighbour, a stranger); do not call anyone Eli. One figure alone is fine. Poses: walking, running, standing, lying, rolling, panic, a red dashed "mistake" ghost (plus in-water poses for cold-water stories).
+- Story devices that take ANY text, so they carry non-winter stories: callouts with arrows, stamps ("STEP 1", "RULE #2"), tags, delta pops ("+2 L", "-1 DAY"), ticks, speech/thought bubbles, a swatch chip with custom text; plus a freeze-frame "paused" look, white flash, whip-zoom, shake, snow.
+- Fixed-text pieces, winter and cold-water stories only: the HUD pills (a "DEC" clock, ICE cm, WATER 0 °C, IN WATER / OUT timers, the 1-10-1 phase strip, BROTHER n M) and the title, ice-ladder, 1-10-1, 911 and "PART 2" cards. Other topics show countdowns, supplies and rules with stamps, tags, deltas and callouts instead.`;
 
 // Video length in seconds (any value; clamped to the allowed range).
 export const lengthText = (n) => {
@@ -37,46 +38,72 @@ export const lengthText = (n) => {
 };
 export const lineText = (n) => { const [lo, hi] = lineRange(n); return `${lo}-${hi} narration lines`; };
 
-// Story angles: each idea run gets a fresh random mix so "Surprise me" doesn't land on the same plot.
-export const ANGLES = [
-  "the second person is the hero and the orange-jacket figure is the one who needs help",
-  "nobody falls in: the danger is getting lost in a whiteout or at night",
-  "the danger arrives hours later (hypothermia, wet clothes, the walk home)",
-  "frostbite and keeping hands and feet working",
-  "a dog or a pet runs onto the ice and the owner wants to follow",
-  "the inside of an ice-fishing shack: heater, fresh air, carbon monoxide warning signs (no chemistry)",
-  "reading the ice before stepping on it: colour, cracks, pressure ridges, inflow creeks",
-  "a stranger across the lake is in trouble and the hero must call and guide, not run in",
-  "a vehicle or snowmobile on the ice",
-  "early-winter first ice or late-spring rotten ice",
-  "a myth people repeat (alcohol warms you, rub frostbite, run to the hole)",
-  "a told-backwards story: open on the rescue, then rewind to the first mistake",
+// Story angles: each idea run gets a fresh random mix so runs don't land on the same plot. Winter angles
+// only reach winter topics (and at most two reach "Surprise me"); every other topic gets story angles.
+export const STORY_ANGLES = [
+  "the narrator is not the hero: they watch a friend make the mistake and must talk them out of it",
+  "nobody gets hurt: the danger is one wrong decision in the first ten minutes",
+  "the danger arrives hours later, after everyone thinks it is over",
+  "a myth people repeat, and what really works",
+  "told backwards: open on the safe ending, then rewind to the first mistake",
   "a 'what would you do?' choice the viewer gets wrong",
-  "two friends, not brothers; give them new names",
-  "a parent and adult child on a weekend trip",
+  "a stranger is in trouble and the hero must guide them by phone, not rush in",
+  "a parent and a teenager with opposite instincts",
+  "two coworkers stuck together; the cautious one is right",
+  "a checklist story: three things they packed and the one they forgot",
+  "a countdown: a fixed number of minutes to do three things in the right order",
+  "a rumour spreads (radio, group chat) and the hero checks before acting",
+  "a pet will not come, and the owner wants to go back for it",
+  "the first night: dark, no phones, what matters most",
+];
+// Whole scenarios: only for "Surprise me" (for a typed topic they would pull the story off it).
+export const SCENARIO_ANGLES = [
   "the first 48 hours in a fallout shelter: water, rationing, staying put, when to come out",
   "zombie outbreak, day one: fiction that teaches a real preparedness checklist",
   "a city blackout: cold, dark, no phones, what matters in the first night",
   "flood evacuation: the ten minutes to leave and what to carry",
   "wildfire go-bag: what is in it, where it sits, when to leave",
   "bunker supplies: what to stock, how much, and what people forget",
+  "a heat wave: the quiet signs that someone is in trouble",
+  "lost on a hike as the light goes: stop, stay, signal",
 ];
-export const pickAngles = (n = 5, rnd = Math.random) => {
-  const a = [...ANGLES];
+export const WINTER_ANGLES = [
+  "the second person is the hero and the orange-jacket figure is the one who needs help",
+  "nobody falls in: the danger is getting lost in a whiteout or at night",
+  "the danger arrives hours later (hypothermia, wet clothes, the walk home)",
+  "frostbite and keeping hands and feet working",
+  "a dog runs onto the ice and the owner wants to follow",
+  "the inside of an ice-fishing shack: heater, fresh air, carbon monoxide warning signs (no chemistry)",
+  "reading the ice before stepping on it: colour, cracks, pressure ridges, inflow creeks",
+  "a vehicle or snowmobile on the ice",
+  "early-winter first ice or late-spring rotten ice",
+  "a winter myth people repeat (alcohol warms you, rub frostbite, run to the hole)",
+];
+export const ANGLES = [...STORY_ANGLES, ...SCENARIO_ANGLES, ...WINTER_ANGLES];
+
+const shuffle = (list, rnd) => {
+  const a = [...list];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a.slice(0, n);
+  return a;
+};
+// surprise: may use whole scenarios and at most 2 winter angles. A typed topic gets story angles only,
+// plus up to 3 winter angles when the topic itself is about winter or cold water.
+export const pickAngles = (n = 5, { surprise = true, winterTopic = false, rnd = Math.random } = {}) => {
+  const maxWinter = winterTopic ? 3 : surprise ? 2 : 0;
+  const w = shuffle(WINTER_ANGLES, rnd).slice(0, Math.floor(rnd() * (maxWinter + 1)));
+  const pool = surprise ? [...STORY_ANGLES, ...SCENARIO_ANGLES] : STORY_ANGLES;
+  return shuffle([...w, ...shuffle(pool, rnd).slice(0, n - w.length)], rnd);
 };
 
-// Titles and premises of ideas already made in other projects, so new runs don't repeat them.
+// Titles only: whole premises of past (mostly winter) ideas pulled every new run back toward them.
 export const pastIdeas = (except, limit = 30) => {
   const out = [];
   if (!existsSync(EPISODES)) return out;
   for (const d of readdirSync(EPISODES)) {
-    if (d === except) continue;
+    if (d === except || d.startsWith("_")) continue; // _boards and other non-project folders
     try {
-      if (d.startsWith("_")) continue; // _boards and other non-project folders
       const j = JSON.parse(readFileSync(path.join(EPISODES, d, "ideas.json"), "utf8"));
-      for (const i of j.ideas ?? []) if (i?.title) out.push(`${i.title}${i.premise ? ` — ${String(i.premise).slice(0, 120)}` : ""}`);
+      for (const i of j.ideas ?? []) if (i?.title) out.push(String(i.title));
     } catch { /* no ideas yet */ }
   }
   return [...new Set(out)].slice(-limit);

@@ -7,7 +7,7 @@ export const STAGES = ["ideas", "script", "shots", "voice", "render"];
 export const STAGE_LABELS = { ideas: "Ideas", script: "Script", shots: "Storyboard", voice: "Voice", render: "Render" };
 export const FORMATS = {
   story: "Survival story — first person, past tense, one character's mistake and how they got out",
-  what: "What would you do? — second person, the viewer is on the ice, choices with consequences",
+  what: "What would you do? — second person, the viewer is in the situation, choices with consequences",
   myth: "Myth vs fact — a common belief, why it is wrong, what really works",
 };
 // Video length in seconds is free (MIN_SECONDS..MAX_SECONDS). Narration runs ~2.6 words/s plus pauses.

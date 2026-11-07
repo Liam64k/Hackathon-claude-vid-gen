@@ -49,12 +49,12 @@ export const IDEAS_SCHEMA = {
           premise: { type: "string", description: "one sentence: WHO + CONSTRAINT + CLOCK + RESOURCE" },
           hook: { type: "string", description: "the first spoken line, under 14 words" },
           twist: { type: "string", description: "the non-obvious turn or myth it busts" },
-          world: { type: "string", description: "how it uses the Winter Lake world (views, time of day, Eli/brother)" },
+          world: { type: "string", description: "setting, time of day and the main characters with their names and relationship" },
           diagrams: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5, description: "3-5 on-screen explainers" },
           fact: { type: "string", description: "the key real fact or number, with the organisation that publishes it" },
           verify: { type: "string", description: "what must be fact-checked before publishing" },
           risk: { type: "string", description: "safety / originality / sensitivity risk, or 'low'" },
-          score: { type: "integer", minimum: 0, maximum: 9, description: "0-9: clear in 1 s + twist + showable in this pack" },
+          score: { type: "integer", minimum: 0, maximum: 9, description: "0-9: clear in 1 s + non-obvious twist + stakes the viewer feels" },
         },
         required: ["title", "premise", "hook", "twist", "world", "diagrams", "fact", "verify", "risk", "score"],
       },
@@ -63,7 +63,14 @@ export const IDEAS_SCHEMA = {
   required: ["ideas"],
 };
 
-export const validateIdeas = (data) => {
+// Ice / frozen-lake stories. Winter topics may have them; other topics must not drift onto the ice.
+const WINTER_WORDS = /\b(ice|icy|frozen|freez\w*|lake|winter|snow\w*|blizzard|whiteout|frost\w*|hypotherm\w*|cold[- ]water|sled\w*|ski\w*|avalanche)\b/i;
+const ICE_STORY = /\b(ice|icy|frozen|lake|ice[- ]fishing|creek mouth|1-10-1|eli)\b/i;
+export const isWinterTopic = (text) => WINTER_WORDS.test(String(text ?? ""));
+export const icyIdeas = (ideas) => (ideas ?? []).map((it, i) => (ICE_STORY.test(`${it?.title} ${it?.premise} ${it?.hook}`) ? i : -1)).filter((i) => i >= 0);
+
+// winterOk: the topic is about winter (ice ideas allowed). surprise: Surprise me (at most two).
+export const validateIdeas = (data, { winterOk = true, surprise = false } = {}) => {
   const errs = [];
   const ideas = data?.ideas;
   if (!Array.isArray(ideas)) return ["ideas must be an array"];
@@ -74,6 +81,9 @@ export const validateIdeas = (data) => {
     const unsafe = safetyIssues(`${it?.premise} ${it?.hook} ${it?.twist}`);
     if (unsafe.length) errs.push(`idea ${i + 1}: unsafe content (${unsafe.join(", ")})`);
   });
+  const icy = icyIdeas(ideas);
+  const maxIcy = winterOk ? 5 : surprise ? 2 : 0;
+  if (icy.length > maxIcy) errs.push(`ideas ${icy.map((i) => i + 1).join(", ")} are set on ice or a frozen lake, but ${surprise ? "at most two Surprise me ideas may be" : "this topic is not about winter"}: replace ${maxIcy ? "the extra ones" : "them"} with ideas about the topic itself, with new characters`);
   return errs;
 };
 

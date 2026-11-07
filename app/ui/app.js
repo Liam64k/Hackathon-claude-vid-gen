@@ -209,6 +209,8 @@ function renderTop() {
   const c = st?.claude;
   let pill;
   if (!st) pill = h("span.pill.wait", {}, h("span.dot"), "Checking Claude…");
+  // Replay never calls Claude, so a red "Connect" there only misleads.
+  else if (replay) pill = h("span.pill", { title: "Replay plays recorded runs. To use your Claude account, start Studio live: Start Studio.command or npm start." }, "Claude not used");
   else if (!c?.installed) pill = h("button.pill.bad", { onclick: () => go("#/"), title: c?.installFix ?? "" }, h("span.dot"), "Claude Code not installed");
   else if (c.loggedIn) pill = h("span.pill.ok", { title: `Your own Claude Code login${c.plan ? ` (${c.plan})` : ""}` }, h("span.dot"), `Claude${c.plan ? ` · ${c.plan[0].toUpperCase()}${c.plan.slice(1)}` : ""}`);
   else if (S.connecting) pill = h("span.pill.wait", {}, h("span.dot"), "Finish sign-in in your browser…");
@@ -699,6 +701,7 @@ function ideasView() {
   ]);
   return [
     stageHead(1, "Pick an idea", `${topic} · ${FORMAT_FULL[d.state.format] ?? ""} · ~${d.state.length} s.`),
+    d.state.mode === "replay" ? h("div.banner.warn", {}, h("div.grow", {}, h("b", {}, "Replay: these are not ideas for your topic. "), "Replay plays back the five recorded ideas of the example “Ten Minutes Under”, whatever you typed. For real ideas, start Studio live (Start Studio.command or npm start) and connect Claude.")) : null,
     st === "running" ? working("ideas") : null,
     st === "error" || st === "paused" ? errorBox("ideas") : null,
     st === "idle" ? h("div.empty", {}, h("p", {}, "Ideas have not been generated yet.")) : null,
