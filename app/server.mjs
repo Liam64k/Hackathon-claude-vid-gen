@@ -26,6 +26,7 @@ import * as render from "./stages/render.mjs";
 import * as boards from "./lib/boards.mjs";
 import { weave, pickWeaveAngle } from "./stages/weave.mjs";
 import { hooks } from "./stages/hooks.mjs";
+import { createSequel } from "./stages/sequel.mjs";
 import { safetyIssues, loadShots, catalogScenes } from "./lib/validate.mjs";
 import { buildShotsFile, editsFile, ensureRawShots, rawFile, timingFor, validateEdits } from "./lib/edits.mjs";
 
@@ -345,6 +346,14 @@ const routes = async (req, res, url) => {
     if (mm[1] !== EXAMPLE_SLUG) await ensureRawShots(mm[1]);
     const d = projectDetail(mm[1]);
     return d ? json(res, 200, d) : fail(res, 404, "No such project");
+  }
+  if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/sequel$/.exec(p)) && m === "POST") {
+    assertIdle();
+    const b = await readBody(req);
+    const s = createSequel(mm[1], { mode: MODE, length: b.length, format: b.format });
+    bus.send("project", { slug: s.slug });
+    startStage(s.slug, "ideas", {});
+    return json(res, 201, projectDetail(s.slug));
   }
   if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/hooks$/.exec(p)) && m === "POST") {
     const slug = mm[1];

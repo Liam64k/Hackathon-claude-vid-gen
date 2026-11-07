@@ -10,11 +10,12 @@ import { IDEAS_SCHEMA, safetyIssues, validateIdeas } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
 import { sleep } from "../engine/replay.mjs";
 import { PACK_BRIEF, PREAMBLE, formatText, styleText, lengthText, pastIdeas, pickAngles } from "./prompts.mjs";
+import { seriesText } from "./sequel.mjs";
 
 export const prompt = (p, angles = pickAngles(5), past = pastIdeas(p.slug)) => `${PREAMBLE}
 
 STAGE 1 — IDEAS for a vertical (9:16) narrated 2D survival short.
-${p.surprise ? "Topic: SURPRISE ME — pick the five strongest premises yourself." : `Topic from the user: ${JSON.stringify(p.topic)}. Keep the user's scenario; show it with this pack's devices (say in "risk" what is adapted).`}${p.seed ? `\nBuild idea 1 on this story outline:\n${p.seed}\nIdeas 2-5 are variations of it.` : ""}
+${p.surprise ? "Topic: SURPRISE ME — pick the five strongest premises yourself." : `Topic from the user: ${JSON.stringify(p.topic)}. Keep the user's scenario; show it with this pack's devices (say in "risk" what is adapted).`}${p.seed ? `\nBuild idea 1 on this story outline:\n${p.seed}\nIdeas 2-5 are variations of it.` : ""}${p.series ? `\n${seriesText(p.series)}\nAll five ideas are candidates for this next episode.` : ""}
 ${styleText(p.style)}
 Format: ${formatText(p.format)}
 Length: ${lengthText(p.length)}

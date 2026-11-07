@@ -390,6 +390,7 @@ const projFacts = (d) => {
   const len = s.length ? `~${s.length} s` : "";
   return h("section.sect", {}, h("header", {}, h("h3", {}, "This video")),
     h("dl.facts", {},
+      s.series ? h("div", {}, h("dt", {}, "Series"), h("dd", {}, `Episode ${s.series.episode} of ${s.series.title}`)) : null,
       h("div", {}, h("dt", {}, "Look"), h("dd", {}, styleName(pStyle(s)))),
       h("div", {}, h("dt", {}, "Posting to"), h("dd", {}, outShape(pOut(s)))),
       h("div", {}, h("dt", {}, "Size"), h("dd.mono", {}, `${pOut(s).width} × ${pOut(s).height}`)),
@@ -437,6 +438,30 @@ const runStage = once(async (stage, body = {}) => {
     refreshDetail();
   } catch (e) { toast(e.message, true); }
 });
+// POST a create-project endpoint, then open the new project on its first screen. Throws ApiError.
+async function openNewProject(url, body, screen = "ideas") {
+  S.stepCost = 0;
+  S.now = null;
+  const d = await api(url, { method: "POST", body });
+  S.partial[d.state.slug] = [];
+  await loadStatus();
+  loadProjects();
+  go(`#/p/${d.state.slug}/${screen}`);
+  return d;
+}
+
+// "Make the next episode": same cast, look and shape; Ideas starts with a "previously" brief.
+const makeSequel = once(async () => {
+  if (!claudeOk()) { toast("Connect Claude first.", true); return; }
+  try { await openNewProject(`/api/projects/${S.route.slug}/sequel`, {}); } catch (e) { toast(e.message, true); }
+});
+const nextEpisode = (d) => {
+  const n = (d.state.series?.episode ?? 1) + 1;
+  return h("section.sect", {}, h("header", {}, h("h3", {}, "Keep the story going")),
+    h("p.helptext", {}, `Episode ${n} keeps ${d.example ? "Eli and his brother" : "the same characters"}, the look and the shape, opens with a callback to this one and brings a new danger and a new lesson.`),
+    h("button.btn.block", { onclick: makeSequel, disabled: !!S.status?.job }, `Make episode ${n}`));
+};
+
 const approve = once(async (stage, body = {}, nextScreen) => {
   await saveChain; // never approve a script while a line edit is still being saved
   try {
@@ -495,14 +520,8 @@ function homeView() {
     if (!surprise && !topic) { toast("Type a topic, or press Surprise me."); go("#/new/idea"); return; }
     if (!claudeOk()) { toast("Connect Claude first.", true); return; }
     try {
-      S.stepCost = 0;
-      S.now = null;
-      const d = await api("/api/projects", { method: "POST", body: { topic, surprise, entry: S.ui.entry, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody() } });
-      S.partial[d.state.slug] = [];
+      await openNewProject("/api/projects", { topic, surprise, entry: S.ui.entry, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody() }, S.ui.entry === "own" ? "script" : "ideas");
       S.ui.topic = "";
-      await loadStatus();
-      loadProjects();
-      go(`#/p/${d.state.slug}/${S.ui.entry === "own" ? "script" : "ideas"}`);
     } catch (e) { toast(e.message, true); }
   });
   const banner = st !== "idea" || !S.status ? null
@@ -1238,6 +1257,7 @@ function renderView() {
     showVideo && t?.titles?.length ? h("section.sect", {}, h("header", {}, h("h3", {}, "Titles")), h("div.titles", {}, t.titles.map((x) => h("div.t", {}, h("span", {}, x), h("small", {}, `${x.length}/60`), h("button.btn.sm", { onclick: () => copy(x), "aria-label": `Copy title ${x}` }, "Copy")))),
       t.description ? h("div.titles", {}, h("div.t", { style: { alignItems: "flex-start" } }, h("span", { style: { whiteSpace: "pre-wrap", fontWeight: 400 } }, t.description), h("button.btn.sm", { onclick: () => copy(t.description) }, "Copy"))) : null) : null,
     showVideo && d.state.voice?.credit ? h("p.helptext", {}, "ElevenLabs free plan: credit “elevenlabs.io” in the title (added above) and don't use it commercially.") : null,
+    d.example || st === "approved" ? nextEpisode(d) : null,
   ], [
     st === "review" && !d.example ? h("button.btn.primary.lg.block", { onclick: () => approve("render", {}, "render") }, "Mark as finished") : null,
     st === "review" && !d.example ? h("button.btn.block", { onclick: () => runStage("render") }, "Render again") : null,
@@ -1414,13 +1434,7 @@ function inspirationView() {
   const makeVideo = once(async () => {
     if (!claudeOk()) { toast("Connect Claude first.", true); return; }
     try {
-      S.stepCost = 0;
-      S.now = null;
-      const d = await api(`/api/boards/${b.id}/project`, { method: "POST", body: { style: S.ui.style, output: outputBody(), length: S.ui.length, format: S.ui.format } });
-      S.partial[d.state.slug] = [];
-      await loadStatus();
-      loadProjects();
-      go(`#/p/${d.state.slug}/${S.ui.entry === "own" ? "script" : "ideas"}`);
+      await openNewProject(`/api/boards/${b.id}/project`, { style: S.ui.style, output: outputBody(), length: S.ui.length, format: S.ui.format });
     } catch (e) { toast(e.message, true); }
   });
   const { w, h: hh } = curDims();

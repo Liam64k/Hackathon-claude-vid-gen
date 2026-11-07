@@ -1,13 +1,13 @@
 // Stage 2 — Script + beat board: episodes/<slug>/script.md, lines.json [{text, highlight[]}], shotlist.md.
 // Live: Claude (opus, high), tools Read,Write. One automatic repair pass (--resume) if lines.json fails.
 import path from "node:path";
-import { copyFileSync, existsSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { APP, EXAMPLE_DIR, episodeDir, rel } from "../lib/paths.mjs";
 import { readJson, update as updateProject, writeJson } from "../lib/store.mjs";
-import { mkdirSync, writeFileSync } from "node:fs";
 import { validateLines, wordCount } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
 import { PACK_BRIEF, PREAMBLE, formatText, lengthText, lineText, styleText } from "./prompts.mjs";
+import { seriesText } from "./sequel.mjs";
 
 export const files = (slug) => {
   const d = episodeDir(slug);
@@ -22,7 +22,7 @@ STAGE 2 — SCRIPT + BEAT BOARD for the approved idea. Episode slug: ${p.slug}
 Approved idea: ${JSON.stringify(idea)}
 Format: ${formatText(p.format)}
 Length: ${lengthText(p.length)}
-${styleText(p.style)}
+${styleText(p.style)}${p.series ? `\n${seriesText(p.series)}` : ""}
 
 ${PACK_BRIEF}
 

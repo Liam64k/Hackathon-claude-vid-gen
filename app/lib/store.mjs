@@ -93,7 +93,7 @@ const stateFile = (slug) => path.join(episodeDir(slug), "state.json");
 
 export const blankStage = () => ({ status: "idle", sessionId: null, cost: 0, startedAt: null, endedAt: null, error: null, warnings: [], attempts: 0 });
 
-export const createProject = ({ topic, surprise, format = "story", length = 90, mode = "live", style, output, seed, entry }) => {
+export const createProject = ({ topic, surprise, format = "story", length = 90, mode = "live", style, output, seed, entry, series }) => {
   const base = surprise || !topic ? "surprise" : slugify(topic).split("-").slice(0, 5).join("-");
   let slug = `${base}-${stamp()}`;
   let n = 2;
@@ -110,6 +110,7 @@ export const createProject = ({ topic, surprise, format = "story", length = 90, 
     style: normalizeStyle(style),
     output: normalizeOutput(output),
     ...(seed ? { seed: String(seed).slice(0, 2000) } : {}),
+    ...(series ? { series } : {}), // { parent, episode, title, previously } for "Make the next episode"
     entry: entry === "own" ? "own" : "generate",
     mode,
     createdAt: new Date().toISOString(),
@@ -173,6 +174,7 @@ export const list = () => {
         stage: currentStage(s),
         updatedAt: s.updatedAt,
         cover: existsSync(path.join(dir, "cover.png")) ? `episodes/${d}/cover.png` : null,
+        episode: s.series?.episode ?? null,
         cost: Object.values(s.stages).reduce((a, x) => a + (x.cost || 0), 0),
       });
     }
