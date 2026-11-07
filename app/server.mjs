@@ -372,7 +372,7 @@ const routes = async (req, res, url) => {
       if (bad) throw bad;
     }
     const cast = castFromBody(b.cast);
-    const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry, voice: b.voice, cast, castMode: b.castMode });
+    const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry, voice: b.voice, cast, castMode: b.castMode, theme: b.theme });
     syncCast(s.slug);
     bus.send("project", { slug: s.slug });
     if (s.entry === "own") {

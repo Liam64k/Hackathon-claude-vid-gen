@@ -66,7 +66,7 @@ const S = {
   stepCost: 0,
   ui: {
     format: "story", length: 60, topic: "", voiceId: null, customVoice: "", libTab: "projects", skill: null, scriptTab: "lines", lineErrors: [],
-    style: "flat", entry: "generate", hover: null, output: { preset: "tiktok" }, cw: 1920, ch: 1200, fragKind: "Moment", draft: "",
+    style: "flat", theme: "auto", cast: null, castMode: "random", entry: "generate", hover: null, output: { preset: "tiktok" }, cw: 1920, ch: 1200, fragKind: "Moment", draft: "",
   },
   connecting: false,
   dirty: false,
@@ -87,7 +87,7 @@ const parseRoute = () => {
   if (parts[0] === "spark") return { name: "spark" };
   if (parts[0] === "library") return { name: "library", tab: parts[1] ?? "projects" };
   if (parts[0] === "inspiration") return { name: "inspiration", id: parts[1] ?? null };
-  if (parts[0] === "new") return { name: "home", step: ["idea", "look", "shape", "story", "review"].includes(parts[1]) ? parts[1] : null };
+  if (parts[0] === "new") return { name: "home", step: ["idea", "look", "cast", "shape", "story", "review"].includes(parts[1]) ? parts[1] : null };
   return { name: "home", step: null };
 };
 const go = (hash) => { if (location.hash !== hash) location.hash = hash; else route(); };
@@ -413,6 +413,8 @@ const projFacts = (d) => {
     h("dl.facts", {},
       s.series ? h("div", {}, h("dt", {}, "Series"), h("dd", {}, `Episode ${s.series.episode} of ${s.series.title}`)) : null,
       h("div", {}, h("dt", {}, "Look"), h("dd", {}, styleName(pStyle(s)))),
+      s.cast ? h("div", {}, h("dt", {}, "Cast"), h("dd", {}, castNames(s.cast))) : null,
+      s.cast ? h("div", {}, h("dt", {}, "Place look"), h("dd", {}, themeLabel(s.cast.theme))) : null,
       h("div", {}, h("dt", {}, "Posting to"), h("dd", {}, outShape(pOut(s)))),
       h("div", {}, h("dt", {}, "Size"), h("dd.mono", {}, `${pOut(s).width} × ${pOut(s).height}`)),
       len ? h("div", {}, h("dt", {}, "Length"), h("dd.mono", {}, len)) : null,
@@ -523,7 +525,7 @@ const outputBody = () => {
 };
 const SAMPLE_CAPTION = "Rule one: lock the door, stay quiet.";
 
-const FLOW = [["idea", "Idea"], ["look", "Look"], ["shape", "Shape"], ["story", "Story"], ["review", "Review"]];
+const FLOW = [["idea", "Idea"], ["look", "Look"], ["cast", "Cast"], ["shape", "Shape"], ["story", "Story"], ["review", "Review"]];
 const STARTERS = [
   ["Zombie outbreak", "What would you do on day one of a zombie outbreak?"],
   ["Nuclear war", "What would you do in the first ten minutes after a nuclear attack warning?"],
@@ -540,6 +542,58 @@ const EXAMPLES = {
 const FORMAT_BLURB = { story: "A character, a problem, a way out.", what: "You are the hero. Pick the smart move.", myth: "Pop a common belief, then show what is true." };
 const ENTRY_NAME = { generate: "Generate script with Claude", own: "Write it myself" };
 
+// ---------------------------------------------------------------- cast helpers
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const hx = (v, fb = "#888888") => (HEX.test(String(v)) ? v : fb);
+const cap1 = (t) => (t ? t[0].toUpperCase() + t.slice(1) : "");
+const themeLabel = (id) => (!id || id === "auto" ? "Auto (fits the topic)" : OPT.cast?.themes?.find((t) => t.id === id)?.label ?? id);
+const coatName = (look) => OPT.cast?.coats?.find((c) => c.coat.toLowerCase() === String(look?.coat).toLowerCase())?.label?.toLowerCase() ?? "custom";
+const castDesc = (m) => `${m.name} (${coatName(m.look)} ${m.look.coatKind ?? "coat"}${m.look.hat && m.look.hat !== "none" ? `, ${m.look.hat}` : ""})`;
+const castNames = (c) => `${c.lead.name} & ${c.second.name}`;
+const randSeed = () => Math.random().toString(36).slice(2, 10);
+
+// Inline SVG figure for the Cast cards. All colours are validated hex; nothing user-typed reaches the markup.
+function figureSvg(look) {
+  const L = look ?? {};
+  const skin = hx(L.skin, "#e8b894"), hair = hx(L.hair, "#3b2a20"), coat = hx(L.coat, "#c0392b"), trim = hx(L.trim, "#f2efe6");
+  const pants = hx(L.pants, "#34495e"), boots = hx(L.boots, "#2b2b2b"), gloves = hx(L.gloves, "#2b2b2b");
+  const hatColor = hx(L.hatColor, coat), hatBand = hx(L.hatBand, trim);
+  const B = { short: [1, 0.86], average: [1, 1], tall: [0.9, 1.1], broad: [1.28, 1] }[L.build] ?? [1, 1];
+  const kind = L.coatKind ?? "puffy", hat = L.hat ?? "none", facial = L.facial ?? "none";
+  const body = kind === "puffy"
+    ? `<rect x="36" y="64" width="48" height="52" rx="16" fill="${coat}"/><path d="M37 82h46M37 98h46" stroke="${trim}" stroke-opacity=".35" stroke-width="2"/>`
+    : kind === "parka"
+      ? `<path d="M36 66q24-8 48 0l4 60H32z" fill="${coat}"/><path d="M60 66v60" stroke="${trim}" stroke-opacity=".5" stroke-width="2"/><ellipse cx="60" cy="68" rx="20" ry="7" fill="${trim}"/>`
+      : `<path d="M38 66q22-6 44 0l2 46H36z" fill="${coat}"/><path d="M60 68v44" stroke="${trim}" stroke-width="2"/><rect x="36" y="108" width="48" height="4" fill="${trim}"/>`;
+  const hats = {
+    beanie: `<path d="M42 40q0-24 18-24t18 24z" fill="${hatColor}"/><rect x="41" y="36" width="38" height="7" rx="3" fill="${hatBand}"/><circle cx="60" cy="14" r="4" fill="${hatBand}"/>`,
+    trapper: `<path d="M42 40q0-24 18-24t18 24z" fill="${hatColor}"/><rect x="41" y="36" width="38" height="6" rx="3" fill="${hatBand}"/><rect x="38" y="40" width="7" height="20" rx="3" fill="${hatColor}"/><rect x="75" y="40" width="7" height="20" rx="3" fill="${hatColor}"/>`,
+    cap: `<path d="M43 38q0-20 17-20t17 20z" fill="${hatColor}"/><rect x="43" y="36" width="34" height="4" fill="${hatBand}"/><path d="M60 38h28q0 5-8 5H60z" fill="${hatColor}"/>`,
+    hood: `<path d="M38 66q-6-22 4-38q18-14 36 0q10 16 4 38l-10-8q4-14-12-16q-16 2-12 16z" fill="${coat}"/><path d="M44 50q16-12 32 0" fill="none" stroke="${trim}" stroke-width="3"/>`,
+    none: `<path d="M43 38q0-20 17-20t17 20q-17-8-34 0z" fill="${hair}"/>`,
+  };
+  const face = facial === "beard" ? `<path d="M45 46q0 24 15 24t15-24q-8 12-15 12t-15-12z" fill="${hair}"/>`
+    : facial === "stubble" ? `<path d="M46 50q0 18 14 18t14-18q-8 10-14 10t-14-10z" fill="${hair}" fill-opacity=".45"/>` : "";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" aria-hidden="true"><g transform="translate(60 150) scale(${B[0]} ${B[1]}) translate(-60 -150)">
+<rect x="43" y="114" width="14" height="30" rx="4" fill="${pants}"/><rect x="63" y="114" width="14" height="30" rx="4" fill="${pants}"/><rect x="40" y="140" width="19" height="10" rx="4" fill="${boots}"/><rect x="61" y="140" width="19" height="10" rx="4" fill="${boots}"/>
+<rect x="24" y="68" width="13" height="40" rx="6" fill="${coat}"/><rect x="83" y="68" width="13" height="40" rx="6" fill="${coat}"/><circle cx="30" cy="110" r="6" fill="${gloves}"/><circle cx="90" cy="110" r="6" fill="${gloves}"/>
+${body}<circle cx="60" cy="48" r="17" fill="${skin}"/><circle cx="54" cy="47" r="1.8" fill="#2b2230"/><circle cx="66" cy="47" r="1.8" fill="#2b2230"/>${face}${hats[hat] ?? hats.none}</g></svg>`;
+  return svgNode(svg);
+}
+
+async function randomMember(which) {
+  const r = await api(`/api/cast/random?seed=${randSeed()}`);
+  return r.cast[which];
+}
+async function seedCast() {
+  if (S.ui.cast || S.ui.castSeeding) return;
+  S.ui.castSeeding = true;
+  try { S.ui.cast = (await api(`/api/cast/random?seed=${randSeed()}`)).cast; S.ui.castMode ||= "random"; }
+  catch (e) { toast(`Could not load the cast: ${e.message}`, true); }
+  S.ui.castSeeding = false;
+  if (S.route.name === "home" && S.route.step === "cast") renderMain();
+}
+
 function homeView() {
   const st = S.ui.step = S.route.step;
   const replay = S.status?.mode === "replay";
@@ -550,8 +604,11 @@ function homeView() {
     if (!surprise && !topic) { toast("Type a topic, or press Surprise me."); go("#/new/idea"); return; }
     if (!claudeOk()) { toast("Connect Claude first.", true); return; }
     try {
-      await openNewProject("/api/projects", { topic, surprise, entry: S.ui.entry, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody(), voice: { provider: voiceChoice(null) } }, S.ui.entry === "own" ? "script" : "ideas");
+      await openNewProject("/api/projects", { topic, surprise, entry: S.ui.entry, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody(), voice: { provider: voiceChoice(null) }, theme: S.ui.theme ?? "auto", ...(S.ui.cast ? { cast: { ...S.ui.cast, theme: S.ui.theme ?? "auto", particles: "auto" }, castMode: S.ui.castMode } : {}) }, S.ui.entry === "own" ? "script" : "ideas");
       S.ui.topic = "";
+      S.ui.cast = null;
+      S.ui.theme = "auto";
+      S.ui.castMode = "random";
       S.ui.voiceProvider = null;
     } catch (e) { toast(e.message, true); }
   });
@@ -634,7 +691,64 @@ function homeView() {
       const ready = OPT.styles[k]?.ready;
       mount(note, h("strong", {}, `${styleName(k)}.`), ` ${STYLE_META[k].text} `, h(`span.${ready ? "ready" : "soon"}`, {}, ready ? "Renders today." : "Art pack coming."));
     });
-    body = [h("div.split", {}, h("section.fscr.looksel", {}, h("header.fhead", {}, h("h1", {}, "Pick a look"), h("p.lead", {}, "Hover to preview, click to choose.")), grid, note), makePreview()), fnav(back("idea"), nextBtn("shape"))];
+    const themeBtns = {};
+    const themeRow = h("div.placerow", {}, h("h2.placelbl", {}, "Place look"),
+      h("div.themes", { role: "group", "aria-label": "Place look" }, [{ id: "auto", label: "Auto (fits the topic)" }, ...(OPT.cast?.themes ?? [])].map((t) =>
+        (themeBtns[t.id] = h("button.theme", { type: "button", "aria-label": t.label, onclick: () => { S.ui.theme = t.id; sync(); } },
+          t.id === "auto" ? h("i.sw.auto", {}, "A") : h("i.sw", { style: { background: `linear-gradient(180deg, ${(t.sky ?? []).map((c) => hx(c)).join(", ")})` } }),
+          h("span", {}, t.label))))));
+    onSync(() => { for (const [k, b] of Object.entries(themeBtns)) b.setAttribute("aria-pressed", String((S.ui.theme ?? "auto") === k)); });
+    body = [h("div.split", {}, h("section.fscr.looksel", {}, h("header.fhead", {}, h("h1", {}, "Pick a look"), h("p.lead", {}, "Hover to preview, click to choose.")), grid, note, OPT.cast ? themeRow : null), makePreview()), fnav(back("idea"), nextBtn("cast"))];
+  } else if (st === "cast") {
+    seedCast();
+    const CD = OPT.cast;
+    const claude = () => S.ui.castMode === "claude";
+    const setMode = (m) => { S.ui.castMode = m; sync(); };
+    const cards = [];
+    const memberCard = (which, title) => {
+      const cur = () => S.ui.cast[which];
+      const edit = (fn) => { fn(cur()); setMode("manual"); };
+      const fig = h("div.fig");
+      const nameIn = h("input.input", { id: `cn-${which}`, type: "text", maxlength: 20, autocomplete: "off", "aria-label": `${title} name`,
+        oninput: (e) => { const v = e.target.value.replace(/[^A-Za-z '-]/g, ""); if (v !== e.target.value) e.target.value = v; cur().name = v; setMode("manual"); } });
+      const groups = [];
+      const swRow = (label, list, key, valOf, same) => {
+        const btns = list.map((o) => h("button.sw-btn", { type: "button", "aria-label": `${title} ${label.toLowerCase()}: ${o.label}`, title: o.label, style: { background: hx(o.hex ?? o.coat) }, onclick: () => edit((m) => { if (key === "coat") Object.assign(m.look, { coat: o.coat, trim: o.trim, pants: o.pants, boots: o.boots, gloves: o.gloves, hatColor: o.hatColor, hatBand: o.hatBand }); else m.look[key] = o.hex; }) }));
+        groups.push(() => btns.forEach((b, i) => b.setAttribute("aria-pressed", String(same(list[i], cur().look)))));
+        return h("div.crow", { role: "group", "aria-label": `${title} ${label.toLowerCase()}` }, h("span.clbl", {}, label), h("div.cvals", {}, btns));
+      };
+      const chipRow = (label, list, key) => {
+        const btns = list.map((v) => h("button.cchip", { type: "button", onclick: () => edit((m) => { m.look[key] = v; }) }, cap1(v)));
+        groups.push(() => btns.forEach((b, i) => b.setAttribute("aria-pressed", String(cur().look[key] === list[i]))));
+        return h("div.crow", { role: "group", "aria-label": `${title} ${label.toLowerCase()}` }, h("span.clbl", {}, label), h("div.cvals", {}, btns));
+      };
+      const rand = once(async () => { try { S.ui.cast[which] = await randomMember(which); setMode("random"); paint(); } catch (e) { toast(e.message, true); } });
+      const card = h("section.ccard", { "aria-label": title },
+        h("div.chead", {}, h("h2", {}, title), h("button.btn.sm", { type: "button", onclick: rand }, "Randomize")),
+        h("div.cbody", {}, fig, h("div.cform", {},
+          h("div.crow", {}, h("label.clbl", { for: `cn-${which}` }, "Name"), nameIn),
+          swRow("Skin", CD.skin, "skin", null, (o, l) => String(l.skin).toLowerCase() === o.hex.toLowerCase()),
+          swRow("Hair", CD.hair, "hair", null, (o, l) => String(l.hair).toLowerCase() === o.hex.toLowerCase()),
+          swRow("Coat", CD.coats, "coat", null, (o, l) => String(l.coat).toLowerCase() === o.coat.toLowerCase()),
+          chipRow("Hat", CD.hats, "hat"), chipRow("Facial hair", CD.facial, "facial"), chipRow("Coat type", CD.coatKinds, "coatKind"), chipRow("Build", CD.builds, "build"))));
+      const paint = () => { if (document.activeElement !== nameIn) nameIn.value = cur().name; mount(fig, figureSvg(cur().look)); groups.forEach((g) => g()); };
+      cards.push(paint);
+      onSync(paint);
+      return card;
+    };
+    if (!CD) {
+      body = [screen("castsel", "Choose your cast", "Cast options are not available from the server yet."), fnav(back("look"), nextBtn("shape"))];
+    } else if (!S.ui.cast) {
+      body = [screen("castsel", "Choose your cast", "Picking two characters…"), fnav(back("look"), nextBtn("shape"))];
+    } else {
+      const both = once(async () => { try { S.ui.cast = { ...S.ui.cast, ...(await api(`/api/cast/random?seed=${randSeed()}`)).cast }; setMode("random"); cards.forEach((f) => f()); } catch (e) { toast(e.message, true); } });
+      const sw = h("button.switch", { type: "button", role: "switch", onclick: () => setMode(claude() ? "manual" : "claude") }, h("i"), "Let Claude cast it");
+      const note = h("p.cast-note", { "aria-live": "polite" }, "Claude picks the cast after you choose an idea.");
+      const wrap = h("div.cards", {}, memberCard("lead", "Lead"), memberCard("second", "Second"));
+      onSync(() => { sw.setAttribute("aria-checked", String(claude())); wrap.classList.toggle("dim", claude()); note.hidden = !claude(); });
+      body = [h("section.fscr.castsel", {}, h("header.fhead", {}, h("h1", {}, "Choose your cast"), h("p.lead", {}, "Two characters star in this video. Tweak them, or roll the dice.")),
+        h("div.casttools", {}, h("button.btn", { type: "button", onclick: both }, "Randomize both"), sw, note), wrap), fnav(back("look"), nextBtn("shape"))];
+    }
   } else if (st === "shape") {
     const presetBtns = {};
     const cards = Object.entries(OPT.presets).map(([k, p]) => {
@@ -657,7 +771,7 @@ function homeView() {
       const { w, hh } = shapeText();
       size.textContent = `Output: ${w} × ${hh} px`;
     });
-    body = [screen("shapesel", "Where will it be posted?", "Pick a preset, or choose a shape below.", h("div.presets", { role: "radiogroup", "aria-label": "Posting to" }, cards), h("div.shapeline", {}, h("span.lbl", {}, "Shape"), seg, size), customRow), fnav(back("look"), nextBtn("story"))];
+    body = [screen("shapesel", "Where will it be posted?", "Pick a preset, or choose a shape below.", h("div.presets", { role: "radiogroup", "aria-label": "Posting to" }, cards), h("div.shapeline", {}, h("span.lbl", {}, "Shape"), seg, size), customRow), fnav(back("cast"), nextBtn("story"))];
   } else if (st === "story") {
     const fmtBtns = {};
     const cards = FORMATS.map(([k, l]) => (fmtBtns[k] = h("button.fmtcard", { type: "button", role: "radio", onclick: () => { S.ui.format = k; sync(); } }, h("b", {}, l), h("span.blurb", {}, FORMAT_BLURB[k]), h("q", {}, EXAMPLES[k]))));
@@ -674,7 +788,7 @@ function homeView() {
     const rows = h("dl.sumlist");
     onSync(() => {
       const { w, hh, where } = shapeText();
-      const items = [["Idea", S.ui.topic.trim() || "Not written yet", "idea"], ["Look", styleName(S.ui.style), "look"], ["Shape", `${where} · ${w} × ${hh}`, "shape"], ["Format", FORMAT_FULL[S.ui.format], "story"], ["Length", lenLabel(S.ui.length), "story"], ["Script", ENTRY_NAME[S.ui.entry], "idea"]];
+      const items = [["Idea", S.ui.topic.trim() || "Not written yet", "idea"], ["Look", styleName(S.ui.style), "look"], ["Cast", S.ui.castMode === "claude" ? "Claude picks the cast" : S.ui.cast ? `${castDesc(S.ui.cast.lead)} & ${castDesc(S.ui.cast.second)}` : "Random, picked for you", "cast"], ["Place look", themeLabel(S.ui.theme), "look"], ["Shape", `${where} · ${w} × ${hh}`, "shape"], ["Format", FORMAT_FULL[S.ui.format], "story"], ["Length", lenLabel(S.ui.length), "story"], ["Script", ENTRY_NAME[S.ui.entry], "idea"]];
       mount(rows, [...items.map(([l, v, to]) => h("div", {}, h("dt", {}, l), h("dd", {}, v), h("a", { href: `#/new/${to}`, "aria-label": `Edit ${l}` }, "Edit"))),
         h("div.voicerow", {}, h("dt", {}, "Voice"), h("dd", {}, voiceSeg(voiceChoice(null), (k) => { S.ui.voiceProvider = k; sync(); }), voiceChoice(null) === "none" ? h("span.small.muted", {}, "Captions only; timing by word count.") : null), h("span"))]);
     });
@@ -1669,6 +1783,7 @@ async function loadOptions() {
     if (o.presets) OPT.presets = o.presets;
     if (o.ratios) OPT.ratios = o.ratios;
     if (o.scenes) OPT.scenes = o.scenes;
+    if (o.castData) OPT.cast = o.castData;
   } catch { /* defaults match the server */ }
 }
 (async () => {
