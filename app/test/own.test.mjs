@@ -31,7 +31,7 @@ test("own project starts at script/review, ideas approved, no Claude call", asyn
   assert.equal(r.body.state.stages.script.status, "review");
   assert.equal(r.body.state.pick, 0);
   assert.equal(r.body.ideas.length, 1);
-  assert.equal(r.body.ideas[0].title, "What To Do When The Lights");
+  assert.equal(r.body.ideas[0].title, "What to do when the lights go out");
   assert.deepEqual(r.body.lines, []);
   assert.equal(claudeCalls, 0);
 });

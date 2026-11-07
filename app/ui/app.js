@@ -1,4 +1,5 @@
 import { computeTiming } from "./timing.js";
+import { SPARK, sentence } from "./spark-words.js";
 import { api, h, mount, md, money, ago, clock, words, captionPreview, toast, fileUrl, eventsUrl, token } from "./lib.js";
 
 const STAGES = ["ideas", "script", "shots", "voice", "render"];
@@ -83,6 +84,7 @@ const insp = (body, foot, o = {}) => { INSP = { body, foot, dark: false, hide: f
 const parseRoute = () => {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   if (parts[0] === "p" && parts[1]) return { name: "project", slug: parts[1], screen: parts[2] ?? null };
+  if (parts[0] === "spark") return { name: "spark" };
   if (parts[0] === "library") return { name: "library", tab: parts[1] ?? "projects" };
   if (parts[0] === "inspiration") return { name: "inspiration", id: parts[1] ?? null };
   if (parts[0] === "new") return { name: "home", step: ["idea", "look", "shape", "story", "review"].includes(parts[1]) ? parts[1] : null };
@@ -161,6 +163,7 @@ const ICON = {
   plus: () => svgNode('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="#5a4fd6" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"></path></svg>'),
   bulb: (on) => svgNode(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="${on ? "#5a4fd6" : "#77727e"}" stroke-width="1.5" stroke-linecap="round"><path d="M8 1.5a4.5 4.5 0 0 0-2.5 8.2V12h5V9.7A4.5 4.5 0 0 0 8 1.5zM6 14.5h4"></path></svg>`),
   grid: (on) => svgNode(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="${on ? "#5a4fd6" : "#77727e"}" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1.5"></rect><rect x="9" y="2" width="5" height="5" rx="1.5"></rect><rect x="2" y="9" width="5" height="5" rx="1.5"></rect><rect x="9" y="9" width="5" height="5" rx="1.5"></rect></svg>`),
+  dice: (on) => { const c = on === "white" ? "#ffffff" : on ? "#5a4fd6" : "#77727e"; return svgNode(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="2" width="12" height="12" rx="3"></rect><circle cx="5.6" cy="5.6" r=".6" fill="${c}"></circle><circle cx="10.4" cy="5.6" r=".6" fill="${c}"></circle><circle cx="8" cy="8" r=".6" fill="${c}"></circle><circle cx="5.6" cy="10.4" r=".6" fill="${c}"></circle><circle cx="10.4" cy="10.4" r=".6" fill="${c}"></circle></svg>`); },
   check: () => svgNode('<svg xmlns="http://www.w3.org/2000/svg" class="chk" viewBox="0 0 12 12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.4 2.4 4.6-5"></path></svg>'),
 };
 // Trusted constant markup only (never user text): parsed as SVG, so nothing goes through innerHTML.
@@ -275,6 +278,7 @@ function renderSide() {
   const link = (href, on, icon, label) => h("a", { href, "aria-current": on ? "page" : null }, icon, label);
   const items = [
     link("#/new/idea", r.name === "home", ICON.plus(), "New video"),
+    link("#/spark", r.name === "spark", ICON.dice(r.name === "spark"), "Spark"),
     link("#/inspiration", r.name === "inspiration", ICON.bulb(r.name === "inspiration"), "Inspiration"),
     link("#/library", r.name === "library", ICON.grid(r.name === "library"), "Library"),
   ];
@@ -341,6 +345,7 @@ function renderMain() {
   let cls = "stage";
   if (r.name === "home") { view = homeView(); cls += " home"; }
   else if (r.name === "library") view = libraryView();
+  else if (r.name === "spark") view = sparkView();
   else if (r.name === "inspiration") { view = inspirationView(); cls += " insp-stage"; }
   else if (!S.detail) view = h("div.empty", {}, "Loading…");
   else if (S.detail.missing) view = h("div.empty", {}, h("p", {}, "This project was not found."), h("a.btn", { href: "#/" }, "Back home"));
@@ -678,6 +683,7 @@ function ideasView() {
     st === "running" ? working("ideas") : null,
     st === "error" || st === "paused" ? errorBox("ideas") : null,
     st === "idle" ? h("div.empty", {}, h("p", {}, "Ideas have not been generated yet.")) : null,
+    ideas.length && !d.example && st !== "running" && (st === "review" || st === "approved") ? hookLab("idea", null) : null,
     h("div.ideas#ideas", { id: "ideas" }, cards),
   ];
 }
@@ -691,6 +697,14 @@ const hlColor = (hl, key) => { for (const x of hl ?? []) { const [w, c] = String
 const hlSet = (hl, key, color) => [...(hl ?? []).filter((x) => String(x).split(":")[0] !== key), ...(color ? [color === "gold" ? key : `${key}:${color}`] : [])];
 const hlPrune = (hl, text) => { const ws = new Set(String(text).split(/\s+/).map(wkey)); return (hl ?? []).filter((x) => ws.has(String(x).split(":")[0])); };
 const speakSec = (n) => n / 2.6;
+const ICONB = Object.fromEntries(Object.entries({
+  up: '<path d="M9 14V4M4.5 8.5L9 4l4.5 4.5"/>',
+  down: '<path d="M9 4v10M4.5 9.5L9 14l4.5-4.5"/>',
+  split: '<path d="M3 9h12M6 5.5L3 9l3 3.5M12 5.5L15 9l-3 3.5"/>',
+  trash: '<path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9h6.6L13 5"/>',
+  pin: '<path d="M6.5 2.5h5l-.7 4.2 2.2 2.3H5l2.2-2.3zM9 9v6"/>',
+}).map(([k, v]) => [k, () => svgNode(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${v}</svg>`)]));
+
 let lineTimer = null;
 let scriptPaint = null;
 function persistLines() {
@@ -712,6 +726,38 @@ function persistLines() {
   });
 }
 const queueLines = () => { S.ui.saveState = "Saving…"; scriptPaint?.(); clearTimeout(lineTimer); lineTimer = setTimeout(persistLines, 700); };
+
+// ---- Hook lab: three alternative opening hooks for the picked idea or for line 1
+const HOOKS = {}; // `${slug}:${source}` -> { busy, hooks, err, replay }
+function hookLab(source, onPick) {
+  const slug = S.route.slug;
+  const key = `${slug}:${source}`;
+  const st = HOOKS[key] ?? (HOOKS[key] = {});
+  const run = async () => {
+    if (st.busy) return;
+    st.busy = true; st.err = null; st.hooks = null;
+    renderMain();
+    try {
+      const r = await api(`/api/projects/${slug}/hooks`, { method: "POST", body: { source } });
+      st.hooks = r.hooks ?? []; st.replay = !!r.replay;
+    } catch (e) { st.err = e.message; }
+    st.busy = false;
+    if (S.route.slug === slug) renderMain();
+  };
+  const copy = async (t) => { try { await navigator.clipboard.writeText(t); toast("Hook copied."); } catch { toast("Select the hook text and copy it."); } };
+  return h("section.hooklab", { "aria-label": "Hook lab" },
+    h("div.row", {},
+      h("button.btn.sm", { type: "button", onclick: run, disabled: st.busy || !!S.status?.job }, st.busy ? [h("span.spinner"), "Trying hooks…"] : st.hooks ? "Try 3 more hooks" : "Try 3 hooks"),
+      h("span.small.faint", {}, source === "line" ? "Three other ways to open line 1." : "Three other ways to open the picked idea."),
+      st.replay && st.hooks ? h("span.tag.replay", {}, "Replay: recorded hooks") : null),
+    st.err ? h("p.lerr", { role: "alert" }, st.err) : null,
+    st.hooks ? h("div.hookcards", { role: "list" }, st.hooks.map((t, i) => h("div.hookcard", { role: "listitem" },
+      h("p", {}, `“${t}”`),
+      onPick
+        ? h("button.btn.sm", { type: "button", onclick: () => { onPick(t); st.hooks = null; toast("Line 1 replaced."); }, "aria-label": `Use hook ${i + 1} as line 1` }, "Use as line 1")
+        : h("button.btn.sm", { type: "button", onclick: () => copy(t), "aria-label": `Copy hook ${i + 1}` }, "Copy")))) : null,
+    !onPick && st.hooks ? h("p.small.faint", {}, "Hooks here are not saved. Copy one; you can paste it as line 1 on the script step.") : null);
+}
 
 function scriptView() {
   const d = S.detail;
@@ -739,6 +785,7 @@ function scriptView() {
       h(`span.stat${total && (total < lo || total > hi) ? ".bad" : ""}`, {}, h("b", {}, String(total)), ` words · target ${lo}-${hi}`),
       h("span.stat", {}, h("b", {}, String(ls.length)), ls.length === 1 ? " line" : " lines"),
       h("span.stat", {}, "≈ ", h("b", {}, `${secs} s`)),
+      h("span.stat.hint", {}, "Click a word to colour it in the captions"),
       h(`span.savestate${S.ui.saveState === "Not saved" ? ".bad" : ""}`, {}, S.ui.saveState ?? ""));
     if (approveBtn) approveBtn.disabled = !ls.some((l) => l.text?.trim());
   };
@@ -747,6 +794,7 @@ function scriptView() {
     if (!l) return;
     const w = words(l.text);
     c.meta.textContent = `${w} word${w === 1 ? "" : "s"} · ~${speakSec(w).toFixed(1)} s${w > 34 ? " · over 34 words" : ""}`;
+    c.meta.classList.toggle("warn", w > 34);
     c.root.classList.toggle("err", errFor(i).length > 0);
     mount(c.err, errFor(i).map((e) => h("div.lerr", {}, e.replace(/^line \d+: /, ""))));
     mount(c.chips, String(l.text).split(/\s+/).filter(Boolean).map((tok) => {
@@ -789,18 +837,17 @@ function scriptView() {
       mutate((ls) => ls.splice(i, 1, { text: a, highlight: hlPrune(hl, a) }, { text: b, highlight: hlPrune(hl, b) }), i + 1);
     };
     const swap = (j) => mutate((ls) => { [ls[i], ls[j]] = [ls[j], ls[i]]; }, j);
+    const ib = (label, glyph, fn, o = {}) => h(`button.ibtn${o.danger ? ".danger" : ""}`, { type: "button", "aria-label": label, title: o.title ?? label, disabled: o.disabled, onclick: fn }, glyph);
     mount(c.root,
-      h("div.n", {}, String(i + 1)),
-      h("div.lbody", {},
-        ta,
-        h("div.chiprow", {}, h("span.meta", {}, "Click a word to colour it"), c.meta),
-        c.chips,
-        c.err,
+      h("div.lrow1", {}, h("div.n", {}, String(i + 1)), ta),
+      c.chips,
+      h("div.lfoot", {},
+        h("div.linfo", {}, c.meta, c.err),
         h("div.lact", {},
-          h("button.btn.sm.tall", { type: "button", disabled: i === 0, "aria-label": `Move line ${i + 1} up`, onclick: () => swap(i - 1) }, "↑ Up"),
-          h("button.btn.sm.tall", { type: "button", disabled: i === L().length - 1, "aria-label": `Move line ${i + 1} down`, onclick: () => swap(i + 1) }, "↓ Down"),
-          h("button.btn.sm.tall", { type: "button", onclick: split, title: "Splits the line at the cursor" }, "Split at cursor"),
-          h("button.btn.sm.tall.danger", { type: "button", "aria-label": `Delete line ${i + 1}`, onclick: () => mutate((ls) => ls.splice(i, 1), Math.max(0, i - 1)) }, "Delete"))));
+          ib(`Move line ${i + 1} up`, ICONB.up(), () => swap(i - 1), { disabled: i === 0, title: "Move up" }),
+          ib(`Move line ${i + 1} down`, ICONB.down(), () => swap(i + 1), { disabled: i === L().length - 1, title: "Move down" }),
+          ib(`Split line ${i + 1} at the cursor`, ICONB.split(), split, { title: "Split at the cursor" }),
+          ib(`Delete line ${i + 1}`, ICONB.trash(), () => mutate((ls) => ls.splice(i, 1), Math.max(0, i - 1)), { danger: true, title: "Delete line" }))));
     cards[i] = c;
     return c.root;
   };
@@ -814,7 +861,7 @@ function scriptView() {
     const ls = L();
     if (!editable) return h("div.lines", {}, ls.map(fixedLine));
     if (!ls.length) return h("div.empty.first", {}, h("p", {}, h("b", {}, "Write your first line — the hook.")), h("p", {}, "Keep it under 34 words, spell numbers as words."), h("button.btn.primary", { onclick: addLine }, "Write line one"));
-    return [stats, h("div.lines", {}, ls.map(card)), h("div.row", { style: { marginTop: "10px" } }, h("button.btn", { onclick: addLine }, "+ Add line"))];
+    return [stats, hookLab("line", (text) => { L()[0] = { text, highlight: [] }; persistLines(); renderMain(); }), h("div.lines", {}, ls.map(card)), h("div.row", { style: { marginTop: "10px" } }, h("button.btn", { onclick: addLine }, "+ Add line"))];
   };
   const body = tab === "lines" ? linesBody()
     : tab === "facts" ? factsView(d)
@@ -1280,13 +1327,13 @@ async function newBoard() {
     go(`#/inspiration/${b.id}`);
   } catch (e) { toast(e.message, true); }
 }
-async function weave() {
+async function weave(remix = false) {
   const b = S.board;
   if (!b?.fragments.length || S.weaving) return;
   S.weaving = b.id;
   renderMain();
   try {
-    const nb = await api(`/api/boards/${b.id}/weave`, { method: "POST" });
+    const nb = await api(`/api/boards/${b.id}/weave`, { method: "POST", body: remix === true ? { remix: true } : undefined });
     if (S.board?.id === nb.id) S.board = nb;
   } catch (e) { toast(e.message, true); }
   S.weaving = null;
@@ -1314,6 +1361,9 @@ function inspirationView() {
   const remove = once(async (fid) => {
     try { S.board = await api(`/api/boards/${b.id}/fragments/${fid}`, { method: "DELETE" }); syncBoardList(); renderMain(); } catch (e) { toast(e.message, true); }
   });
+  const pin = once(async (f) => {
+    try { S.board = await api(`/api/boards/${b.id}/fragments/${f.id}`, { method: "PATCH", body: { pin: !f.pin } }); renderMain(); } catch (e) { toast(e.message, true); }
+  });
   const rename = async (e) => {
     const title = e.target.value.trim() || "Untitled board";
     try { S.board = await api(`/api/boards/${b.id}`, { method: "PATCH", body: { title } }); syncBoardList(); e.target.value = S.board.title; } catch (err) { toast(err.message, true); }
@@ -1333,9 +1383,10 @@ function inspirationView() {
         h("button.add", { type: "button", onclick: add }, "Add")),
       h("div.sparks", {}, "Stuck? Try", SPARKS.map((t) => h("button.spark", { type: "button", onclick: () => { S.ui.draft = `${t}: `; const f = $("frag"); f.value = S.ui.draft; f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }, t)))),
     h("div.frags", { role: "list", "aria-label": "Fragments" }, b.fragments.length
-      ? b.fragments.map((f, i) => h("article.frag", { role: "listitem" },
-          h("div.hd", {}, h("span.k", {}, h("i", { style: { background: KIND_DOT[f.kind] } }), f.kind), h("span.no", {}, `#${i + 1}`)),
+      ? b.fragments.map((f, i) => ({ f, i })).sort((x, y) => Number(!!y.f.pin) - Number(!!x.f.pin) || x.i - y.i).map(({ f, i }) => h("article.frag", { role: "listitem", class: f.pin ? "pinned" : "" },
+          h("div.hd", {}, h("span.k", {}, h("i", { style: { background: KIND_DOT[f.kind] } }), f.kind, f.pin ? h("span.pinbadge", {}, ICONB.pin(), "Must use") : null), h("span.no", {}, `#${i + 1}`)),
           h("p", {}, f.text),
+          h("button.pinbtn", { type: "button", "aria-pressed": String(!!f.pin), onclick: () => pin(f) }, ICONB.pin(), "Must use"),
           h("button.rm", { type: "button", "aria-label": `Remove fragment ${i + 1}`, title: "Remove", onclick: () => remove(f.id) }, "×")))
       : h("div.empty", {}, "Nothing here yet. Add a person, a place, a moment, a danger, a lesson or a twist. Small pieces are fine.")),
   ];
@@ -1344,13 +1395,17 @@ function inspirationView() {
   const weaving = S.weaving === b.id;
   const story = b.story;
   const n = b.fragments.length;
-  const weaveBtn = h("button.btn.sm", { type: "button", onclick: weave, disabled: weaving || !n }, weaving ? [h("span.spinner"), "Weaving…"] : story ? "Weave again" : "Weave story");
+  const weaveBtn = h("span.row", { style: { gap: "6px", flexWrap: "nowrap" } },
+    h("button.btn.sm", { type: "button", onclick: () => weave(), disabled: weaving || !n }, weaving ? [h("span.spinner"), "Weaving…"] : story ? "Weave again" : "Weave story"),
+    h("button.btn.sm", { type: "button", onclick: () => weave(true), disabled: weaving || !n || !story, title: story ? "Weave the same fragments with a new angle" : "Weave a story first" }, "Remix"));
   const body = [
     h("div.story-head", {}, h("span.mono", {}, `Story · from ${n} fragment${n === 1 ? "" : "s"}`), weaveBtn),
     weaving ? h("p.story-empty", { role: "status" }, h("b", {}, "Claude is weaving your fragments. "), "This can take 30 to 90 seconds. You can keep reading; don't add fragments until it finishes.")
     : story ? [
       story.replay ? h("div", {}, h("span.tag.replay", {}, "Replay: a recorded story, not woven from your fragments")) : null,
+      story.angle ? h("div", {}, h("span.tag.angle", {}, `Angle: ${story.angle}`)) : null,
       h("div", {}, h("h2.story-title", {}, story.title), h("p.story-logline", {}, story.logline)),
+      story.warnings?.length ? h("div.story-warn", { role: "note" }, story.warnings.map((w) => h("p", {}, w))) : null,
       h("ol.beats", {}, story.beats.map((x) => h("li", {}, h("span.p", {}, x.part), h("span.t", {}, x.text, x.uses?.length ? h("span.u", {}, x.uses.map((k) => `#${k}`).join(" ")) : null)))),
       h("p.small-note", {}, "Facts are flagged to check before the script is approved."),
     ]
@@ -1376,6 +1431,81 @@ function inspirationView() {
     h("a.small-note", { href: "#/", style: { color: "#b9b2ff", textAlign: "center" } }, "Change look, size or length"),
   ], { dark: true });
   return stage;
+}
+
+// ---------------------------------------------------------------- Spark (what-if dice, no Claude calls)
+const SLOTS = [["scenario", "Scenario"], ["person", "Person"], ["place", "Place"], ["twist", "Twist"]];
+const KEPT_KEY = "studio-kept-sparks";
+const loadKept = () => { try { const v = JSON.parse(localStorage.getItem(KEPT_KEY) ?? "[]"); return Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : []; } catch { return []; } };
+const saveKept = (list) => { try { localStorage.setItem(KEPT_KEY, JSON.stringify(list.slice(0, 30))); } catch { /* private mode */ } };
+const pickOf = (k, not) => { const pool = SPARK[k] ?? []; let v; for (let t = 0; t < 8; t++) { v = pool[Math.floor(Math.random() * pool.length)]; if (v !== not || pool.length < 2) break; } return v ?? ""; };
+const SP = { pick: null, locked: {}, kept: null, rolling: false };
+function sparkView() {
+  if (!SP.pick) SP.pick = Object.fromEntries(SLOTS.map(([k]) => [k, pickOf(k)]));
+  SP.kept ??= loadKept();
+  const text = () => sentence(SP.pick);
+  const cardEls = {};
+  const big = h("p.spark-sentence", { "aria-live": "polite" }, text());
+  const paint = () => {
+    for (const [k] of SLOTS) {
+      const c = cardEls[k];
+      c.val.textContent = SP.pick[k];
+      c.lock.setAttribute("aria-pressed", String(!!SP.locked[k]));
+      c.lock.textContent = SP.locked[k] ? "Locked" : "Lock";
+      c.root.classList.toggle("locked", !!SP.locked[k]);
+    }
+    big.textContent = text();
+  };
+  const roll = (keys) => {
+    const ks = keys.filter((k) => !SP.locked[k] || keys.length === 1);
+    if (!ks.length || SP.rolling) { if (!ks.length) toast("Everything is locked. Unlock a card to roll it."); return; }
+    const final = Object.fromEntries(ks.map((k) => [k, pickOf(k, SP.pick[k])]));
+    if (reduceMotion()) { Object.assign(SP.pick, final); paint(); return; }
+    SP.rolling = true;
+    ks.forEach((k) => cardEls[k].root.classList.add("rolling"));
+    let n = 0;
+    const tick = setInterval(() => {
+      n++;
+      if (n >= 8) {
+        clearInterval(tick);
+        Object.assign(SP.pick, final);
+        ks.forEach((k) => cardEls[k].root.classList.remove("rolling"));
+        SP.rolling = false;
+      } else ks.forEach((k) => (SP.pick[k] = pickOf(k)));
+      paint();
+    }, 70);
+  };
+  const cards = SLOTS.map(([k, label]) => {
+    const val = h("p.slot-val", {}, SP.pick[k]);
+    const lock = h("button.btn.sm", { type: "button", "aria-pressed": String(!!SP.locked[k]), "aria-label": `Lock ${label}`, onclick: () => { SP.locked[k] = !SP.locked[k]; paint(); } }, SP.locked[k] ? "Locked" : "Lock");
+    const root = h("article.slot", { class: SP.locked[k] ? "locked" : "" },
+      h("p.slot-k", {}, label), val,
+      h("div.slot-act", {}, lock, h("button.btn.sm", { type: "button", "aria-label": `Reroll ${label}`, onclick: () => roll([k]) }, "Reroll")));
+    cardEls[k] = { root, val, lock };
+    return root;
+  });
+  const use = (t) => { S.ui.topic = t; go("#/new/idea"); };
+  const keep = () => {
+    const entry = { ...SP.pick, text: text() };
+    if (SP.kept.some((x) => x.text === entry.text)) return toast("Already in Kept sparks.");
+    SP.kept = [entry, ...SP.kept];
+    saveKept(SP.kept);
+    renderMain();
+  };
+  const kept = SP.kept.length
+    ? h("ul.kept", {}, SP.kept.map((x, i) => h("li", {}, h("span.kt", {}, x.text),
+        h("span.row", { style: { gap: "6px", flexWrap: "nowrap" } },
+          h("button.btn.sm", { type: "button", onclick: () => use(x.text) }, "Use"),
+          h("button.btn.sm.danger", { type: "button", "aria-label": `Remove kept spark ${i + 1}`, onclick: () => { SP.kept = SP.kept.filter((y) => y !== x); saveKept(SP.kept); renderMain(); } }, "Remove")))))
+    : h("p.small.faint", {}, "Nothing kept yet. Press Keep on a roll you like.");
+  insp([], [], { hide: true });
+  return h("div.sparkscr", {},
+    h("header.fhead", {}, h("h1", {}, "Spark"), h("p.lead", {}, "Roll four what-if dice for a story seed. Lock what you like, reroll the rest. No Claude calls, nothing is spent.")),
+    h("div.slots", {}, cards),
+    h("div.row", { style: { margin: "4px 0 16px" } }, h("button.btn.primary.lg.rollbtn", { type: "button", onclick: () => roll(SLOTS.map(([k]) => k)) }, ICON.dice("white"), "Roll the dice")),
+    h("section.spark-out", {}, big,
+      h("div.row", {}, h("button.btn.primary", { type: "button", onclick: () => use(text()) }, "Use this idea"), h("button.btn", { type: "button", onclick: keep }, "Keep"))),
+    h("section", {}, h("h3", {}, "Kept sparks"), kept));
 }
 
 // ---------------------------------------------------------------- SSE

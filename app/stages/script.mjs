@@ -95,7 +95,12 @@ export const run = async (ctx) => {
 // empty lines.json, template script.md / shotlist.md, Script waiting in review.
 export const seedOwnProject = (slug, topic) => {
   const text = String(topic ?? "").replace(/\s+/g, " ").trim();
-  const title = text.split(" ").slice(0, 6).join(" ").replace(/[.,:;!?]+$/, "").replace(/\b([a-z])/g, (c) => c.toUpperCase()) || "My Story";
+  // First clause, at most 8 words, never ending on a small word ("…in a"), sentence case.
+  const SMALL = new Set(["a", "an", "the", "of", "in", "on", "at", "to", "and", "or", "for", "with", "during", "from", "by", "is", "are", "you", "your", "do", "would"]);
+  const words = text.split(/[.!?;:—–]/)[0].replace(/[,"“”]/g, "").trim().split(" ").filter(Boolean).slice(0, 8);
+  while (words.length > 2 && SMALL.has(words.at(-1).toLowerCase())) words.pop();
+  const raw = words.join(" ");
+  const title = raw ? raw[0].toUpperCase() + raw.slice(1) : "My Story";
   const d = episodeDir(slug);
   const f = files(slug);
   mkdirSync(d, { recursive: true });
