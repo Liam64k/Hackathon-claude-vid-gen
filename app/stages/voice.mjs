@@ -89,7 +89,22 @@ const publish = (ctx, n, durations) => {
 export const run = async (ctx) => {
   const lines = readJson(scriptFiles(ctx.slug).lines);
   if (!Array.isArray(lines)) throw new StageError("missing_input", "Approve the script first.");
-  const provider = ctx.opts.provider === "placeholder" || (!elevenKey() && !ctx.replay) ? "placeholder" : "elevenlabs";
+  const chosen = ctx.opts.provider ?? ctx.project().voice?.provider;
+  if (chosen === "none") {
+    // Captions only: no clips, empty audio.json. timeline.ts times each line by words/2.6 and Episode.tsx mounts no audio.
+    if (!ctx.replay) {
+      checkout(ctx.slug);
+      for (const f of readdirSync(VOICE_DIR).filter((f) => /^line-(\d+)\.mp3$/.test(f))) rmSync(path.join(VOICE_DIR, f));
+      writeFileSync(AUDIO_JSON, JSON.stringify({ voice: {}, sfx: {} }, null, 2) + "\n");
+      saveCurrent();
+    }
+    publish(ctx, 0, {});
+    ctx.activity("No voice: captions only, timing by word count", { tool: "voice" });
+    ctx.progress(1, "No voice");
+    ctx.update((s) => (s.voice = { voiceId: null, provider: "none", model: null, credit: false, tier: null, seconds: 0 }));
+    return;
+  }
+  const provider = chosen === "placeholder" || (!elevenKey() && !ctx.replay) ? "placeholder" : "elevenlabs";
   const voiceId = String(ctx.opts.voiceId || VOICES[0].id).replace(/[^A-Za-z0-9]/g, "").slice(0, 40);
 
   if (ctx.replay) {

@@ -334,7 +334,7 @@ const routes = async (req, res, url) => {
       const bad = unsafeTopic(topic);
       if (bad) throw bad;
     }
-    const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry });
+    const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry, voice: b.voice });
     bus.send("project", { slug: s.slug });
     if (s.entry === "own") {
       script.seedOwnProject(s.slug, topic);
@@ -408,7 +408,11 @@ const routes = async (req, res, url) => {
   if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/stages\/(ideas|script|shots|voice|render)\/(run|approve|cancel)$/.exec(p)) && m === "POST") {
     const [, slug, stage, action] = mm;
     const b = await readBody(req);
-    if (action === "run") return json(res, 202, startStage(slug, stage, { resume: !!b.resume, voiceId: b.voiceId, provider: b.provider }));
+    if (action === "run") {
+      const provider = store.normalizeVoiceProvider(b.provider ?? b.voice?.provider) ?? undefined;
+      if (stage === "voice" && provider) store.update(slug, (x) => (x.voice = { ...x.voice, provider }));
+      return json(res, 202, startStage(slug, stage, { resume: !!b.resume, voiceId: b.voiceId, provider }));
+    }
     if (action === "approve") return json(res, 200, await approve(slug, stage, b));
     if (action === "cancel") return json(res, 200, { cancelled: cancel(slug) });
   }

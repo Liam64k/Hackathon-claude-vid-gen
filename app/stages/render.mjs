@@ -56,7 +56,7 @@ export const run = async (ctx) => {
   copyFileSync(r.file, o.mp4);
   const info = await probe(o.mp4);
   if (info) ctx.activity(`Rendered ${info.width}×${info.height}, ${info.fps} fps, ${info.duration?.toFixed(1)} s, audio ${info.audio ? "yes" : "NO"}`, { tool: "render" });
-  if (info && !info.audio) ctx.warn("The MP4 has no audio stream.");
+  if (info && !info.audio && ctx.project().voice?.provider !== "none") ctx.warn("The MP4 has no audio stream.");
   ctx.update((s) => (s.stages.render.info = info));
   ctx.artifact("video", rel(o.mp4));
 

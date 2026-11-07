@@ -1,5 +1,6 @@
 // Project state: episodes/<slug>/state.json. Stages are resumable from this file; nothing secret is stored.
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, statSync } from "node:fs";
+import { elevenKey } from "./secrets.mjs";
 import path from "node:path";
 import { EPISODES, EXAMPLE_SLUG, episodeDir } from "./paths.mjs";
 
@@ -63,7 +64,16 @@ export const normalizeOutput = (o) => {
   return normalizeOutput({ preset: "tiktok" });
 };
 // Old state.json files have no style/output: default to flat + TikTok.
-const withDefaults = (s) => { s.style = normalizeStyle(s.style); s.output = normalizeOutput(s.output); return s; };
+export const VOICE_PROVIDERS = ["elevenlabs", "placeholder", "none"];
+export const normalizeVoiceProvider = (p) => (VOICE_PROVIDERS.includes(p) ? p : null);
+const withDefaults = (s) => {
+  s.style = normalizeStyle(s.style);
+  s.output = normalizeOutput(s.output);
+  s.voice = { voiceId: null, provider: null, model: null, credit: false, ...(s.voice ?? {}) };
+  // chosen provider (elevenlabs | placeholder | none); a run records what it actually used in the same field
+  if (!normalizeVoiceProvider(s.voice.provider) && !/^elevenlabs/.test(s.voice.provider ?? "")) s.voice.provider = elevenKey() ? "elevenlabs" : "placeholder";
+  return s;
+};
 
 export const slugify = (s) =>
   String(s ?? "")
@@ -93,7 +103,7 @@ const stateFile = (slug) => path.join(episodeDir(slug), "state.json");
 
 export const blankStage = () => ({ status: "idle", sessionId: null, cost: 0, startedAt: null, endedAt: null, error: null, warnings: [], attempts: 0 });
 
-export const createProject = ({ topic, surprise, format = "story", length = 90, mode = "live", style, output, seed, entry, series }) => {
+export const createProject = ({ topic, surprise, format = "story", length = 90, mode = "live", style, output, seed, entry, series, voice }) => {
   const base = surprise || !topic ? "surprise" : slugify(topic).split("-").slice(0, 5).join("-");
   let slug = `${base}-${stamp()}`;
   let n = 2;
@@ -116,7 +126,7 @@ export const createProject = ({ topic, surprise, format = "story", length = 90, 
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     pick: null,
-    voice: { voiceId: null, provider: null, model: null, credit: false },
+    voice: { voiceId: null, provider: normalizeVoiceProvider(voice?.provider), model: null, credit: false },
     stages: Object.fromEntries(STAGES.map((s) => [s, blankStage()])),
   };
   save(state);

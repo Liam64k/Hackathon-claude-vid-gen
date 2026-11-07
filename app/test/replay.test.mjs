@@ -82,3 +82,29 @@ test("replay completes all stages with zero Claude calls", { timeout: 120000 }, 
   assert.equal(claudeCalls, 0, "no Claude calls in replay");
   assert.ok(existsSync(path.join(EPISODES, slug, "episode-phone.mp4")));
 });
+
+test("voice provider none: captions only, empty audio.json, render not blocked", { timeout: 60000 }, async () => {
+  const created = await call("/api/projects", "POST", { surprise: true, format: "story", length: 90, voice: { provider: "none" } });
+  const s2 = created.state.slug;
+  try {
+    assert.equal(created.state.voice.provider, "none");
+    slug = s2;
+    await waitFor("ideas", "review");
+    await call(`/api/projects/${s2}/stages/ideas/approve`, "POST", { pick: 0 });
+    await waitFor("script", "review");
+    await call(`/api/projects/${s2}/stages/script/approve`, "POST", {});
+    await waitFor("shots", "review");
+    await call(`/api/projects/${s2}/stages/shots/approve`, "POST", { next: false });
+    await call(`/api/projects/${s2}/stages/voice/run`, "POST", { provider: "none" });
+    const d = await waitFor("voice", "review");
+    assert.equal(d.clips.length, 0);
+    assert.deepEqual(d.audio, { voice: {}, sfx: {} });
+    assert.equal(d.state.voice.provider, "none");
+    await call(`/api/projects/${s2}/stages/voice/approve`, "POST", {});
+    const r = await waitFor("render", "review", 60000);
+    assert.ok(r.outputs.phone);
+  } finally {
+    rmSync(path.join(EPISODES, s2), { recursive: true, force: true });
+    slug = undefined;
+  }
+});

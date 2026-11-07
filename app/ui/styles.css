@@ -725,3 +725,13 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
   .chips-w { padding-left: 0; }
 }
 @media (max-width: 480px) { .slots { grid-template-columns: 1fr 1fr; gap: 8px; } .slot { padding: 12px; } .slot-val { font-size: 16px; } }
+
+.voicerow dd { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.voicerow dd .seg { max-width: 460px; }
+.voicerow dd .small { display: block; margin-top: 6px; font-weight: 400; }
+.voicenote { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.sect .seg { margin-top: 8px; }
+.seg.fmt { padding: 3px; gap: 2px; background: #f1f0f5; box-shadow: none; overflow: visible; }
+.seg.fmt button { height: auto; min-height: 36px; border: 0; border-radius: 8px; background: transparent; font-size: 13px; padding: 2px 8px; line-height: 1.15; }
+.seg.fmt button + button { border-left: 0; }
+.seg.fmt button[aria-checked="true"] { background: #fff; box-shadow: 0 1px 3px rgba(31, 27, 36, 0.12); font-weight: 600; }

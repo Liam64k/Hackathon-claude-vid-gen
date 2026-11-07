@@ -449,6 +449,15 @@ const errorBox = (stage) => {
       h(`button.btn.sm${resumable ? "" : ".primary"}`, { onclick: () => runStage(stage) }, paused ? "Start this step again" : "Retry")));
 };
 
+// ---- voice provider: "elevenlabs" | "placeholder" (Mac voice) | "none" (captions only)
+const VOICE_OPTS = [["elevenlabs", "ElevenLabs"], ["placeholder", "Mac voice"], ["none", "No voice — captions only"]];
+const voiceOpts = () => VOICE_OPTS.filter(([k]) => k !== "elevenlabs" || S.status?.eleven?.keySource);
+const voiceDefault = () => (S.status?.eleven?.keySource ? "elevenlabs" : "placeholder");
+const voiceChoice = (saved) => {
+  const c = S.ui.voiceProvider ?? (["elevenlabs", "placeholder", "none"].includes(saved) ? saved : null) ?? voiceDefault();
+  return voiceOpts().some(([k]) => k === c) ? c : voiceDefault();
+};
+const voiceSeg = (cur, set) => h("div.seg.fmt", { role: "radiogroup", "aria-label": "Voice" }, voiceOpts().map(([k, label]) => h("button", { type: "button", role: "radio", "aria-checked": String(cur === k), onclick: () => set(k) }, label)));
 const runStage = once(async (stage, body = {}) => {
   try {
     S.stepCost = 0;
@@ -541,8 +550,9 @@ function homeView() {
     if (!surprise && !topic) { toast("Type a topic, or press Surprise me."); go("#/new/idea"); return; }
     if (!claudeOk()) { toast("Connect Claude first.", true); return; }
     try {
-      await openNewProject("/api/projects", { topic, surprise, entry: S.ui.entry, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody() }, S.ui.entry === "own" ? "script" : "ideas");
+      await openNewProject("/api/projects", { topic, surprise, entry: S.ui.entry, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody(), voice: { provider: voiceChoice(null) } }, S.ui.entry === "own" ? "script" : "ideas");
       S.ui.topic = "";
+      S.ui.voiceProvider = null;
     } catch (e) { toast(e.message, true); }
   });
   const banner = st !== "idea" || !S.status ? null
@@ -665,7 +675,8 @@ function homeView() {
     onSync(() => {
       const { w, hh, where } = shapeText();
       const items = [["Idea", S.ui.topic.trim() || "Not written yet", "idea"], ["Look", styleName(S.ui.style), "look"], ["Shape", `${where} · ${w} × ${hh}`, "shape"], ["Format", FORMAT_FULL[S.ui.format], "story"], ["Length", lenLabel(S.ui.length), "story"], ["Script", ENTRY_NAME[S.ui.entry], "idea"]];
-      mount(rows, items.map(([l, v, to]) => h("div", {}, h("dt", {}, l), h("dd", {}, v), h("a", { href: `#/new/${to}`, "aria-label": `Edit ${l}` }, "Edit"))));
+      mount(rows, [...items.map(([l, v, to]) => h("div", {}, h("dt", {}, l), h("dd", {}, v), h("a", { href: `#/new/${to}`, "aria-label": `Edit ${l}` }, "Edit"))),
+        h("div.voicerow", {}, h("dt", {}, "Voice"), h("dd", {}, voiceSeg(voiceChoice(null), (k) => { S.ui.voiceProvider = k; sync(); }), voiceChoice(null) === "none" ? h("span.small.muted", {}, "Captions only; timing by word count.") : null), h("span"))]);
     });
     const own = S.ui.entry === "own";
     const prim = h("button.btn.primary.lg", { type: "button", onclick: () => submit(false) }, own ? "Start writing" : "Write 5 ideas");
@@ -1213,30 +1224,51 @@ function voiceView() {
   const total = Object.values(audio).reduce((a, b) => a + b, 0);
   const v = d.state.voice ?? {};
   const placeholder = v.provider === "placeholder";
+  const choice = voiceChoice(v.provider);
+  const none = choice === "none";
   const setKey = async () => {
     const el = $("elkey");
     try { await api("/api/elevenlabs/key", { method: "POST", body: { key: el.value } }); el.value = ""; await loadStatus(); renderMain(); toast("Key kept in memory for this session only."); } catch (e) { toast(e.message, true); }
   };
   const forget = async () => { try { await api("/api/elevenlabs/key", { method: "POST", body: { key: "" } }); await loadStatus(); renderMain(); } catch (e) { toast(e.message, true); } };
-  const generate = () => runStage("voice", { voiceId: S.ui.customVoice.trim() || S.ui.voiceId, provider: keySource ? "elevenlabs" : "placeholder" });
+  const generate = () => runStage("voice", { voiceId: S.ui.customVoice.trim() || S.ui.voiceId, provider: choice });
+  const skipVoice = once(async () => {
+    try {
+      S.stepCost = 0;
+      await api(`/api/projects/${S.route.slug}/stages/voice/run`, { method: "POST", body: { provider: "none" } });
+      for (let i = 0; i < 100; i++) {
+        const p = await api(`/api/projects/${S.route.slug}`);
+        const vs = p.state.stages.voice;
+        if (vs.status === "error") throw new Error(vs.error?.message ?? "Voice step failed.");
+        if (vs.status === "review") break;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      await approve("voice", {}, "render");
+    } catch (e) { toast(e.message, true); }
+  });
   const editableSetup = !replay && (st === "idle" || st === "error" || st === "paused" || st === "review");
   const setup = editableSetup
-    ? [h("section.sect", {}, h("header", {}, h("h3", {}, "Voice")),
+    ? [h("section.sect", {}, h("header", {}, h("h3", {}, "Voice")), voiceSeg(choice, (k) => { S.ui.voiceProvider = k; renderMain(); })),
+        none ? h("p.helptext", {}, "Captions only, timing by word count. No audio is made and nothing is sent to ElevenLabs.") : null,
+        choice !== "elevenlabs" ? null : h("section.sect", {}, h("header", {}, h("h3", {}, "ElevenLabs voice")),
           h("div.voices", {}, (voicesCache?.voices ?? []).map((x) => h("button.voice", { "aria-pressed": String(!S.ui.customVoice && S.ui.voiceId === x.id), onclick: () => { S.ui.voiceId = x.id; S.ui.customVoice = ""; renderMain(); } }, h("b", {}, x.name), h("span.small.muted", {}, x.note)))),
           h("input.input", { placeholder: "…or paste a custom ElevenLabs voice ID", value: S.ui.customVoice, "aria-label": "Custom voice ID", oninput: (e) => (S.ui.customVoice = e.target.value) })),
-        h("section.sect.field", {}, h("header", {}, h("h3", {}, h("label", { for: "elkey", style: { fontSize: "13px", color: "var(--ink)", fontWeight: 600 } }, "ElevenLabs API key"))),
+        none ? null : h("section.sect.field", {}, h("header", {}, h("h3", {}, h("label", { for: "elkey", style: { fontSize: "13px", color: "var(--ink)", fontWeight: 600 } }, "ElevenLabs API key"))),
           keySource
             ? h("div.row", {}, h("span.tag.ok", {}, keySource === "env" ? "✓ From ELEVENLABS_API_KEY" : "✓ Kept in memory for this session"), keySource === "session" ? h("button.btn.sm.ghost", { onclick: forget }, "Forget key") : null)
             : h("div.row", { style: { flexWrap: "nowrap" } }, h("input.input#elkey", { id: "elkey", type: "password", autocomplete: "off", placeholder: "sk_…", style: { flex: 1, minWidth: 0 }, onkeydown: (e) => e.key === "Enter" && setKey() }), h("button.btn.sm", { onclick: setKey }, "Use key")),
           h("span.small.faint", {}, "Never written to disk. Without a key, Studio makes a placeholder voice with your computer's speech engine, clearly labelled, for testing only."))]
     : replay && (st === "idle" || st === "error" || st === "paused")
-      ? [h("p.helptext", {}, "Replay uses the recorded ElevenLabs voice of the example episode. No key needed.")]
+      ? [h("section.sect", {}, h("header", {}, h("h3", {}, "Voice")), voiceSeg(choice, (k) => { S.ui.voiceProvider = k; renderMain(); })),
+          h("p.helptext", {}, none ? "Captions only, timing by word count. No audio is made." : "Replay uses the recorded ElevenLabs voice of the example episode. No key needed.")]
       : [];
   insp([projFacts(d), ...setup], [
-    st === "review" && !d.example ? h("button.btn.primary.lg.block", { onclick: () => approve("voice", {}, "render") }, "Accept voice → render") : null,
-    editableSetup ? h(`button.btn${st === "review" ? "" : ".primary.lg"}.block`, { onclick: generate, disabled: st === "running" }, keySource ? (st === "review" ? "Regenerate voice" : "Generate voice") : (st === "review" ? "Regenerate placeholder voice" : "Make placeholder voice")) : null,
-    editableSetup ? h("p.note", {}, keySource ? `${lines.length} lines · eleven_v4 · stitched line to line` : `${lines.length} lines · ${S.status?.eleven?.placeholder ?? "system"} speech`) : null,
-    replay && (st === "idle" || st === "error" || st === "paused") ? h("button.btn.primary.lg.block", { onclick: () => runStage("voice", {}) }, "Generate voice (replay)") : null,
+    st === "review" && !d.example && !none ? h("button.btn.primary.lg.block", { onclick: () => approve("voice", {}, "render") }, "Accept voice → render") : null,
+    editableSetup && none ? h("button.btn.primary.lg.block", { onclick: skipVoice, disabled: st === "running" }, "Skip voice → render") : null,
+    editableSetup && none && st === "review" ? h("button.btn.block", { onclick: () => approve("voice", {}, "render") }, "Keep captions only → render") : null,
+    editableSetup && !none ? h(`button.btn${st === "review" ? "" : ".primary.lg"}.block`, { onclick: generate, disabled: st === "running" }, keySource ? (st === "review" ? "Regenerate voice" : "Generate voice") : (st === "review" ? "Regenerate placeholder voice" : "Make placeholder voice")) : null,
+    editableSetup && !none ? h("p.note", {}, keySource ? `${lines.length} lines · eleven_v4 · stitched line to line` : `${lines.length} lines · ${S.status?.eleven?.placeholder ?? "system"} speech`) : null,
+    replay && (st === "idle" || st === "error" || st === "paused") ? (none ? h("button.btn.primary.lg.block", { onclick: skipVoice }, "Skip voice → render") : h("button.btn.primary.lg.block", { onclick: () => runStage("voice", {}) }, "Generate voice (replay)")) : null,
     st === "approved" && !d.example ? h("a.btn.primary.lg.block", { href: `#/p/${d.state.slug}/render` }, "Go to render →") : null,
   ]);
   return [
@@ -1244,7 +1276,8 @@ function voiceView() {
     st === "running" ? working("voice", true) : null,
     st === "error" || st === "paused" ? errorBox("voice") : null,
     (st === "review" || st === "approved") && v.credit ? h("div.banner.info", {}, h("div.grow", {}, h("b", {}, "Credit reminder. "), "ElevenLabs' free plan is non-commercial and published videos must credit “elevenlabs.io” in the title. Studio adds it to your titles.")) : null,
-    placeholder && (st === "review" || st === "approved") ? h("div.banner.warn", {}, h("div.grow", {}, h("b", {}, "Placeholder voice. "), "Made with your computer's speech engine for testing. Add an ElevenLabs key and regenerate before publishing.")) : null,
+    placeholder && (st === "review" || st === "approved") ? h("p.voicenote", {}, "Mac voice, made with your computer's speech engine. Fine for testing; switch to ElevenLabs for a published video.") : null,
+    v.provider === "none" && (st === "review" || st === "approved") ? h("p.voicenote", {}, "Captions only, timing by word count. Set a length for each line on the Timing tab.") : null,
     rawOf().length ? subtabs("Voice") : null,
     rawOf().length && S.ui.sbTab === "timing" ? [timingView(d, canEdit(d)), dirtyBar(d)] :
     d.clips?.length
