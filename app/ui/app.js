@@ -216,19 +216,38 @@ function renderTop() {
   else if (S.connecting) pill = h("span.pill.wait", {}, h("span.dot"), "Finish sign-in in your browser…");
   else pill = h("button.pill.bad", { onclick: connect }, h("span.dot"), "Connect Claude");
   const u = st?.usage;
-  const five = u?.rate?.fiveHour;
   const job = st?.job;
   mount(
     $("top"),
     h("a.brand", { href: "#/" }, ICON.logo(), "Studio"),
     renderStepper(),
     h("div.tools", {},
-      u ? h("span.meter", { title: `What today’s runs would cost on the pay-per-use API. On a Claude subscription you are not charged per run: it counts toward your plan’s usage limit${five != null ? ` (5-hour window used: ${Math.round(five * 100)}%)` : ""}.` }, "≈ ", h("b", {}, money(u.today)), " today · not billed") : null,
+      u && !replay ? planMeter(u) : null,
       st ? h(`span.pill.${replay ? "replay" : "live"}`, { title: replay ? "Replay: recorded runs and cached files, no Claude calls" : "Live: your own Claude Code does the work" }, h("span.dot", { style: { background: replay ? "var(--warn-dot)" : "var(--ok-dot)" } }), replay ? "Replay" : "Live") : null,
       pill,
       h("button.pill", { "aria-expanded": String(S.feedOpen), "aria-controls": "feed", onclick: () => setFeed(!S.feedOpen), title: "What Claude reads, writes and runs, live" }, job ? h("span.badge") : null, "Activity")),
   );
   if (narrow()) $("top").querySelector(".st.cur")?.scrollIntoView({ inline: "center", block: "nearest" });
+}
+
+// Plan usage left (Claude reports it during runs). Studio stops at plan.cap used and never uses paid extra usage.
+const pctOf = (x) => `${Math.round(x * 100)}%`;
+const resetAt = (sec) => (sec ? new Date(sec * 1000).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "unknown");
+function planMeter(u) {
+  const p = u.plan ?? {};
+  const cost = `About ${money(u.today)} of API-equivalent usage today (not billed on a subscription).`;
+  const rule = `Studio stops new and running steps at ${pctOf(p.cap ?? 0.9)} of either window and never uses paid extra usage.`;
+  if (!p.known) return h("span.plan", { title: `Claude reports your plan usage during a run, so it shows after the first one. ${rule} ${cost}` }, "Plan left: after first run");
+  const w = (label, x) => (x ? [` ${label} `, h("b", {}, pctOf(x.left))] : []);
+  const used = Math.max(p.fiveHour?.used ?? 0, p.sevenDay?.used ?? 0);
+  const level = p.limited || p.overage || used >= (p.cap ?? 0.9) ? "bad" : used >= (p.cap ?? 0.9) - 0.15 ? "warn" : "ok";
+  const tip = [
+    p.fiveHour ? `5-hour window: ${pctOf(p.fiveHour.used)} used, resets ${resetAt(p.fiveHour.resetsAt)}.` : null,
+    p.sevenDay ? `Weekly window: ${pctOf(p.sevenDay.used)} used, resets ${resetAt(p.sevenDay.resetsAt)}.` : null,
+    p.limited ? "Your plan limit is reached." : null,
+    rule, cost,
+  ].filter(Boolean).join(" ");
+  return h(`span.plan.${level}`, { title: tip, "aria-label": `Claude plan usage left. ${tip}` }, h("span.dot"), "Plan left", ...w("5 h", p.fiveHour), h("span.wk", {}, ...w("· week", p.sevenDay)));
 }
 
 function setFeed(open) {
@@ -418,7 +437,7 @@ const errorBox = (stage) => {
   const e = st.error ?? {};
   const paused = st.status === "paused";
   const resumable = paused && S.detail.state.mode !== "replay" && st.sessionId && ["ideas", "script", "shots"].includes(stage);
-  const titles = { rate_limit: "Usage limit reached", budget: "Spending cap reached", cancelled: "Paused", interrupted: "Interrupted", timeout: "Took too long", denied: "A tool was blocked", typecheck: "The shots did not typecheck", render: "The render failed", not_installed: "Claude Code is not installed", signed_out: "Claude is signed out", eleven_key: "ElevenLabs key rejected", unsafe_topic: "Topic not allowed" };
+  const titles = { plan_limit: "Paused to stay within your Claude plan", rate_limit: "Usage limit reached", budget: "Spending cap reached", cancelled: "Paused", interrupted: "Interrupted", timeout: "Took too long", denied: "A tool was blocked", typecheck: "The shots did not typecheck", render: "The render failed", not_installed: "Claude Code is not installed", signed_out: "Claude is signed out", eleven_key: "ElevenLabs key rejected", unsafe_topic: "Topic not allowed" };
   return h(`div.errbox${paused ? ".paused" : ""}`, { role: "alert" },
     h("b", {}, titles[e.code] ?? (paused ? "Paused" : "Something went wrong")),
     h("div", {}, e.message ?? "No details."),

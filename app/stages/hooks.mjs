@@ -52,7 +52,7 @@ export const hooks = async (input, { mode, signal } = {}) => {
     if (!result) handle.cancel();
   }
   if (result) usage.addRun(Number(result.cost ?? 0));
-  if (!result?.ok) throw Object.assign(new Error(result?.error?.message ?? "Claude stopped without a result."), { status: 502, code: result?.error?.code ?? "claude_error" });
+  if (!result?.ok) throw Object.assign(new Error(result?.error?.message ?? "Claude stopped without a result."), { status: result?.error?.code === "plan_limit" ? 429 : 502, code: result?.error?.code ?? "claude_error" });
   const list = cleanHooks(result.structured?.hooks);
   if (!list.length) throw Object.assign(new Error("Claude's hooks did not pass the checks. Try again."), { status: 502, code: "invalid_output" });
   return { hooks: list };

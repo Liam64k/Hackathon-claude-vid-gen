@@ -108,7 +108,7 @@ export const weave = async (fragments, { mode, signal, angle, previous } = {}) =
     if (!result) handle.cancel();
   }
   if (result) usage.addRun(Number(result.cost ?? 0));
-  if (!result?.ok) throw Object.assign(new Error(result?.error?.message ?? "Claude stopped without a result."), { status: 502, code: result?.error?.code ?? "claude_error" });
+  if (!result?.ok) throw Object.assign(new Error(result?.error?.message ?? "Claude stopped without a result."), { status: result?.error?.code === "plan_limit" ? 429 : 502, code: result?.error?.code ?? "claude_error" });
   const story = normalize(result.structured, fragments.length);
   if (!story) throw Object.assign(new Error("Claude's story did not have the expected shape. Try again."), { status: 502, code: "invalid_output" });
   const unsafe = safetyIssues([story.title, story.logline, ...story.beats.map((b) => b.text)].join(" "));

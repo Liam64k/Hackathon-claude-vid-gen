@@ -164,7 +164,7 @@ export const createParser = ({ root = "" } = {}) => {
       }
       case "rate_limit_event": {
         const i = e.rate_limit_info ?? {};
-        out.push({ type: "rate", status: i.status, resetsAt: i.resetsAt, kind: i.rateLimitType, windows: i.unifiedWindows ?? null });
+        out.push({ type: "rate", status: i.status, resetsAt: i.resetsAt, kind: i.rateLimitType, windows: i.unifiedWindows ?? null, isUsingOverage: !!i.isUsingOverage });
         break;
       }
       case "result": {

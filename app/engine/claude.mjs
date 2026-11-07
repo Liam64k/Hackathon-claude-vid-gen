@@ -7,6 +7,7 @@
 // Prompt goes on stdin; cwd = studio root so CLAUDE.md, skills and agents load automatically.
 // Never --bare (it ignores the subscription login). API-key variables are removed from the child env.
 import { ROOT } from "../lib/paths.mjs";
+import * as usage from "../lib/usage.mjs";
 import { childEnv, findClaude, INSTALL_HINT } from "../lib/env.mjs";
 import { run } from "../lib/proc.mjs";
 import { createParser } from "./parse.mjs";
@@ -57,12 +58,30 @@ export const claudeCli = {
       q.close();
       return { events: q, cancel() {} };
     }
+    // Plan guard: never start a run that could take the user past their Claude plan (lib/usage.mjs).
+    const blocked = usage.blockReason(stage);
+    if (blocked) {
+      q.push({ type: "result", ok: false, cost: 0, denials: [], error: blocked });
+      q.close();
+      return { events: q, cancel() {} };
+    }
+    const before = usage.snapshot();
+    let planStop = null;
     const args = buildArgs(opts);
     const parser = createParser({ root: ROOT });
     let sawResult = false;
     let cancelled = false;
     let timedOut = false;
-    const emit = (evs) => { for (const e of evs) { if (e.type === "result") sawResult = true; q.push(e); } };
+    const emit = (evs) => {
+      for (const e of evs) {
+        if (e.type === "rate" && !planStop && (planStop = usage.record(e))) proc.kill(); // past the cap: stop now
+        if (e.type === "result") {
+          sawResult = true;
+          if (planStop) Object.assign(e, { ok: false, error: planStop }); // whatever it finished, report the stop
+        }
+        q.push(e);
+      }
+    };
     const proc = run(found.path, [...(found.prefix ?? []), ...args], {
       cwd: ROOT,
       env: childEnv(),
@@ -75,9 +94,11 @@ export const claudeCli = {
     proc.done.then(({ code, error, tail }) => {
       clearTimeout(timer);
       emit(parser.end());
+      usage.learn(stage, before);
       if (!sawResult) {
         let err;
-        if (cancelled) err = { code: "cancelled", message: "Stopped." };
+        if (planStop) err = planStop;
+        else if (cancelled) err = { code: "cancelled", message: "Stopped." };
         else if (timedOut) err = { code: "timeout", message: `Claude took longer than ${Math.round(opts.timeoutMs / 60000)} min for this stage and was stopped. Partial files were kept.` };
         else if (error?.code === "ENOENT") err = { code: "not_installed", message: `Could not start Claude Code (${found.path}). Install it with: ${INSTALL_HINT}` };
         else err = { code: "crashed", message: `Claude exited (code ${code}) without a result. ${tail.slice(-3).join(" ").slice(0, 300)}` };

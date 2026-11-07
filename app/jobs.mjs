@@ -79,7 +79,7 @@ export const startStage = (slug, stage, opts = {}) => {
       bus.send("gate", { slug, stage, warnings: s.stages[stage].warnings });
     } catch (e) {
       const code = e.code ?? "error";
-      const paused = ["cancelled", "rate_limit", "budget", "timeout"].includes(code);
+      const paused = ["cancelled", "rate_limit", "plan_limit", "budget", "timeout"].includes(code);
       const status = paused ? "paused" : "error";
       try {
         store.update(slug, (s) => Object.assign(s.stages[stage], { status, endedAt: new Date().toISOString(), error: { code, message: e.message, tail: e.tail ?? null, resetsAt: e.resetsAt ?? null } }));
@@ -190,11 +190,10 @@ function makeCtx({ slug, stage, mode, opts, ac, cancels, task = null }) {
           }
           case "tool_error":
             break;
-          case "rate": {
-            const r = usage.setRate(ev);
-            emit("usage", { usage: usage.get(), rate: r });
+          case "rate":
+            // live runs record it in engine/claude.mjs (the plan guard); replayed numbers are never stored
+            if (mode === "live") emit("usage", { usage: usage.get() });
             break;
-          }
           case "result":
             result = ev;
             break;
@@ -226,8 +225,8 @@ function makeCtx({ slug, stage, mode, opts, ac, cancels, task = null }) {
       }
       if (!result.ok) {
         const e = result.error ?? { code: "claude_error", message: "Claude reported an error." };
-        const rate = usage.get().rate;
-        throw new StageError(e.code, e.message, { resetsAt: e.code === "rate_limit" ? rate?.resetsAt ?? null : null });
+        const resetsAt = e.resetsAt ?? (e.code === "rate_limit" ? usage.get().plan.fiveHour?.resetsAt ?? null : null);
+        throw new StageError(e.code, e.message, { resetsAt });
       }
       return result;
     },

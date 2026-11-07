@@ -59,6 +59,13 @@ a.st:hover { background: var(--primary-tint); color: var(--ink); }
 .tools { min-width: 0; display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 13px; }
 .meter { font-family: var(--mono); color: var(--muted); white-space: nowrap; font-size: 13px; }
 .meter b { color: var(--ink2); font-weight: 500; }
+.plan { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
+.plan b { color: var(--ink2); font-weight: 500; }
+.plan .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok-dot); margin-right: 2px; }
+.plan.warn .dot { background: var(--warn-dot); }
+.plan.warn b { color: var(--warn); }
+.plan.bad .dot { background: var(--bad); }
+.plan.bad b { color: var(--bad); }
 .pill { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 11px; border-radius: 50px; border: 0; background: var(--panel); box-shadow: var(--ring); font-size: 13px; font-weight: 500; white-space: nowrap; color: var(--ink); text-decoration: none; }
 .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
 .pill.ok .dot { background: var(--ok-dot); }
@@ -501,6 +508,7 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
 /* ---------- responsive ---------- */
 @media (max-width: 1520px) {
   .meter { display: none; }
+  .plan .wk { display: none; }
 }
 @media (max-width: 1320px) {
   .top { grid-template-columns: auto minmax(0, 1fr) auto; }
