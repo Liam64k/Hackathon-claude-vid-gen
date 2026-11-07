@@ -1,3 +1,4 @@
+import { castTheme } from "../cast";
 import { useCurrentFrame } from "remotion";
 import { OUT, rand } from "../art/kit";
 import { palette } from "../art/color";
@@ -30,7 +31,7 @@ export const Foreground = () => {
   if (!s.fg) return null;
   const cam = camAt(frame);
   const w = worldAt(frame);
-  const P = palette(w.dusk);
+  const P = palette(w.dusk, castTheme());
   const off = Math.max(-130, Math.min(130, -(cam.x - s.from.x) * 0.4 * cam.zoom));
   const sway = Math.sin(frame / 40) * 6;
   const dark = P.pines;

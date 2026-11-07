@@ -2,6 +2,7 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { HEROES } from "../art/heroes";
 import { Hero, HeroHead, type HeroExpr, type HeroProps } from "../art/Rig";
 import { UI_FONT } from "../art/fonts";
+import { castLook } from "../cast";
 
 // Dev-only pose / expression sheet for the channel heroes. 2160x1920: Eli left, brother right.
 const INK = "#1d2433";
@@ -32,8 +33,8 @@ const EXPRS: HeroExpr[] = ["calm", "scared", "focused", "relieved", "shouting", 
 
 export const CastSheet = () => {
   const frame = useCurrentFrame();
-  const eli = HEROES.eli;
-  const bro = HEROES.brother;
+  const eli = { ...HEROES.eli, ...castLook("eli", HEROES.eli) };
+  const bro = { ...HEROES.brother, ...castLook("brother", HEROES.brother) };
   const E = (p: Omit<HeroProps, "look" | "frame"> & { frame?: number }) => <Hero look={eli} frame={frame} {...p} />;
   const B = (p: Omit<HeroProps, "look" | "frame"> & { frame?: number }) => <Hero look={bro} frame={frame} {...p} />;
   const s1 = 0.95;
@@ -44,7 +45,7 @@ export const CastSheet = () => {
       <svg viewBox="0 0 2160 1920" width={2160} height={1920}>
         <rect x={1080} width={1080} height={1920} fill="#c3cfdc" />
         {/* ---------------- ELI ---------------- */}
-        <Label x={540} y={86} size={54}>ELI · CHANNEL HERO</Label>
+        <Label x={540} y={86} size={54}>{`${eli.name.toUpperCase()} · LEAD`}</Label>
         {[0, 1, 2, 3].map((i) => <Ground key={i} x0={40 + i * 255} x1={250 + i * 255} y={600} />)}
         {E({ x: 150, y: 600, scale: s1, view: "front", seed: 1 })}
         {E({ x: 405, y: 600, scale: s1, view: "three", seed: 2 })}
@@ -88,7 +89,7 @@ export const CastSheet = () => {
         <Label x={800} y={1886}>ROLL (TOP VIEW)</Label>
 
         {/* ---------------- BROTHER ---------------- */}
-        <Label x={1620} y={86} size={54}>BROTHER · PARKA</Label>
+        <Label x={1620} y={86} size={54}>{`${bro.name.toUpperCase()} · SECOND`}</Label>
         {[0, 1, 2, 3].map((i) => <Ground key={i} x0={1120 + i * 255} x1={1330 + i * 255} y={640} />)}
         {B({ x: 1230, y: 640, scale: s1, view: "front", seed: 21 })}
         {B({ x: 1485, y: 640, scale: s1, view: "three", seed: 22 })}

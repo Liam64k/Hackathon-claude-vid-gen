@@ -4,9 +4,10 @@
 // episodes/<slug>/build/. The example's originals are snapshotted once, before anything is changed.
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { AUDIO_JSON, EDITS_JSON, EXAMPLE_DIR, EXAMPLE_SLUG, OUT, RUNTIME, SHOTS_TS, VOICE_DIR, episodeDir } from "./paths.mjs";
+import { AUDIO_JSON, EDITS_JSON, EXAMPLE_DIR, EXAMPLE_SLUG, OUT, RUNTIME, SHOTS_TS, SRC, VOICE_DIR, episodeDir } from "./paths.mjs";
 import { readJson, writeJson } from "./store.mjs";
 
+const CAST_JSON = path.join(SRC, "cast.json"); // per-episode cast / theme / particles (null = defaults)
 const OWNER_FILE = path.join(RUNTIME, "workspace.json");
 export const EXAMPLE_BUILD = path.join(EXAMPLE_DIR, "build");
 const voiceClips = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => /^line-\d+\.mp3$/.test(f)) : []);
@@ -39,6 +40,7 @@ export const saveCurrent = () => {
   copyFileSync(SHOTS_TS, path.join(dir, "shots.ts"));
   copyFileSync(AUDIO_JSON, path.join(dir, "audio.json"));
   if (existsSync(EDITS_JSON)) copyFileSync(EDITS_JSON, path.join(dir, "edits.json"));
+  if (existsSync(CAST_JSON)) copyFileSync(CAST_JSON, path.join(dir, "cast.json"));
   for (const f of voiceClips(path.join(dir, "voice"))) rmSync(path.join(dir, "voice", f));
   for (const f of voiceClips(VOICE_DIR)) copyFileSync(path.join(VOICE_DIR, f), path.join(dir, "voice", f));
 };
@@ -53,6 +55,7 @@ export const checkout = (slug) => {
   const audio = dir && existsSync(path.join(dir, "audio.json")) ? readFileSync(path.join(dir, "audio.json")) : JSON.stringify({ voice: {}, sfx: {} }, null, 2) + "\n";
   writeFileSync(AUDIO_JSON, audio);
   writeFileSync(EDITS_JSON, dir && existsSync(path.join(dir, "edits.json")) ? readFileSync(path.join(dir, "edits.json")) : "null\n");
+  writeFileSync(CAST_JSON, dir && existsSync(path.join(dir, "cast.json")) ? readFileSync(path.join(dir, "cast.json")) : "null\n");
   for (const f of voiceClips(VOICE_DIR)) rmSync(path.join(VOICE_DIR, f));
   if (dir) for (const f of voiceClips(path.join(dir, "voice"))) copyFileSync(path.join(dir, "voice", f), path.join(VOICE_DIR, f));
   setOwner(slug);

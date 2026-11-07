@@ -1,5 +1,6 @@
 // Renders a scripted Figure (Eli / brother): animation clock, planted-feet walking, water line clip,
 // custom skeletons for the rescue poses, and the red dashed "ghost Eli" double.
+import { castLook } from "../cast";
 import { useId } from "react";
 import { Easing, interpolate } from "remotion";
 import { HEROES } from "./heroes";
@@ -114,7 +115,7 @@ const Shards = ({ p, seed }: { p: number; seed: number }) => (
 
 export const FigureEl = ({ f, local, len, id, rim }: { f: Figure; frame?: number; local: number; len: number; id?: string; rim?: Rim | null }) => {
   const uid = `fg${useId().replace(/[^a-zA-Z0-9]/g, "")}${id ?? ""}`;
-  const look: HeroLook = HEROES[f.id];
+  const look: HeroLook = { ...HEROES[f.id], ...castLook(f.id, HEROES[f.id]) };
   const span = Math.max(1, len - 1);
   const lt = Math.min(local, (f.hold ?? 1) * span); // frozen local time
   const e = ease(lt / span);

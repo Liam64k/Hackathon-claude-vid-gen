@@ -35,16 +35,16 @@ export interface HeroLook {
   skin: string;
   hair: string;
   coat: string; // signature colour
-  coatKind: "puffy" | "parka";
+  coatKind: "puffy" | "parka" | "jacket";
   trim: string;
   pants: string;
   boots: string;
   sole: string;
   gloves: string;
-  hat: "beanie" | "trapper";
+  hat: "beanie" | "trapper" | "cap" | "hood" | "none";
   hatColor: string;
   hatBand: string;
-  facial: "stubble" | "beard";
+  facial: "none" | "stubble" | "beard";
   picks?: boolean;
   dims: Dims;
 }
@@ -230,17 +230,30 @@ const HeadEl = ({ look, view, expr, blink, talk, frame, seed, uid, rim, breath }
     </g>
   );
 
-  const trapper = look.hat === "trapper";
-  const flap = (x: number, w = 34) => (
-    <g key={`flap${x}`}>
-      <rect x={x - w / 2 - 3} y={-36} width={w + 6} height={78} rx={16} fill={look.hatBand} stroke={OUT} strokeWidth={4} />
-      <rect x={x - w / 2 + 3} y={-32} width={w - 6} height={68} rx={13} fill={look.hatColor} stroke={OUT} strokeWidth={3} />
-      <path d={`M${x},42 q-4,14 2,26`} stroke={OUT} strokeWidth={3} fill="none" />
-    </g>
-  );
+  const hatKind = look.hat;
+  const trapper = hatKind === "trapper";
+  const hood = hatKind === "hood";
+  const beanie = hatKind === "beanie";
+  const cap = hatKind === "cap";
+  const bare = hatKind === "none";
+  const flapped = trapper || hood;
+  const hoodC = look.coat;
+  const flap = (x: number, w = 34) =>
+    hood ? (
+      <g key={`flap${x}`}>
+        <rect x={x - w / 2 - 6} y={-38} width={w + 12} height={96} rx={20} fill={hoodC} stroke={OUT} strokeWidth={4} />
+        <rect x={x - w / 2 + 4} y={-30} width={w - 8} height={80} rx={14} fill={shade(hoodC, 0.16)} />
+      </g>
+    ) : (
+      <g key={`flap${x}`}>
+        <rect x={x - w / 2 - 3} y={-36} width={w + 6} height={78} rx={16} fill={look.hatBand} stroke={OUT} strokeWidth={4} />
+        <rect x={x - w / 2 + 3} y={-32} width={w - 6} height={68} rx={13} fill={look.hatColor} stroke={OUT} strokeWidth={3} />
+        <path d={`M${x},42 q-4,14 2,26`} stroke={OUT} strokeWidth={3} fill="none" />
+      </g>
+    );
 
   const beanieTilt = view === "side" ? -9 : view === "three" ? -4 : 0;
-  const domeD = trapper
+  const domeD = flapped
     ? `M${-R - 7},-32 C${-R - 9},${-R - 52} ${R + 9},${-R - 52} ${R + 7},-32 Z`
     : `M${-R - 4},-32 C${-R - 6},${-R - 44} ${R + 6},${-R - 44} ${R + 4},-32 Z`;
   const furBrim = (() => {
@@ -292,10 +305,41 @@ const HeadEl = ({ look, view, expr, blink, talk, frame, seed, uid, rim, breath }
     }
   })();
 
+  // Bare head / under a cap: a hair mass with a scalloped fringe.
+  const fringeD = (() => {
+    const yb = -24;
+    let p = `M${-R - 3},${yb} C${-R - 6},${-R - 34} ${R + 6},${-R - 34} ${R + 3},${yb}`;
+    const n = 6;
+    for (let i = 0; i < n; i++) {
+      const x1 = R + 3 - ((2 * R + 6) * (i + 1)) / n;
+      p += ` Q${x1 + (R + 3) / n},${yb + 14 - (i % 2) * 6} ${x1},${yb - (i % 2) * 5}`;
+    }
+    return p + " Z";
+  })();
+  const hairEl = (
+    <Cel id={`${uid}hair`} d={fringeD} fill={look.hair} rim={rim}>
+      <rect x={shadeSide > 0 ? R * 0.35 : -R * 3} y={-R * 2} width={R * 2.6} height={R * 2} fill={shade(look.hair, 0.16)} />
+      <path d={`M${-R * 0.5},-40 Q${-R * 0.1},${-R - 8} ${R * 0.3},-44`} stroke={shade(look.hair, 0.25)} strokeWidth={3} fill="none" />
+    </Cel>
+  );
+  const capD = `M${-R - 4},-30 C${-R - 5},${-R - 36} ${R + 5},${-R - 36} ${R + 4},-30 Z`;
+  const bx = view === "side" ? R * 0.35 : view === "three" ? fx * 0.8 - R * 0.5 : -R * 0.82;
+  const bw2 = view === "side" ? R * 0.95 : view === "three" ? R * 1.25 : R * 1.64;
+  const capEl = (
+    <g>
+      <Cel id={`${uid}cap`} d={capD} fill={look.hatColor} rim={rim}>
+        <rect x={shadeSide > 0 ? R * 0.35 : -R * 3} y={-R * 2} width={R * 2.6} height={R * 2} fill={shade(look.hatColor, 0.16)} />
+        <path d={`M0,${-R - 36} L0,-30`} stroke={shade(look.hatColor, 0.22)} strokeWidth={2.5} />
+        <rect x={-R - 6} y={-40} width={2 * R + 12} height={10} fill={look.hatBand} />
+      </Cel>
+      {!back && <path d={`M${bx},-34 Q${bx + bw2 / 2},${view === "side" ? 0 : 26} ${bx + bw2},-34 Z`} fill={shade(look.hatColor, 0.3)} stroke={OUT} strokeWidth={4} strokeLinejoin="round" />}
+    </g>
+  );
+
   return (
     <g>
       {flat(view) && [ear(-R + 1, true), ear(R - 1, true)]}
-      {trapper && view === "three" && flap(R - 4, 28)}
+      {flapped && view === "three" && flap(R - 4, 28)}
       <Cel id={`${uid}h`} d={headD} fill={sk} rim={rim}>
         <circle cx={shadeSide * R * 1.32} cy={R * 0.12} r={R * 1.06} fill={shade(sk, 0.13)} />
         {/* hair under the hat */}
@@ -391,25 +435,31 @@ const HeadEl = ({ look, view, expr, blink, talk, frame, seed, uid, rim, breath }
       )}
       {/* hat */}
       <g transform={`rotate(${beanieTilt},0,-20)`}>
-        {trapper && view === "side" && flap(-R * 0.12, 40)}
-        <Cel id={`${uid}hat`} d={domeD} fill={look.hatColor} rim={rim}>
-          <rect x={shadeSide > 0 ? R * 0.35 : -R * 3} y={-R * 2} width={R * 2.6} height={R * 2} fill={shade(look.hatColor, 0.16)} />
-          {!trapper && Array.from({ length: 9 }, (_, i) => <path key={i} d={`M${-R + 12 + i * 16},-40 Q${-R + 14 + i * 16},${-R * 0.95} ${(-R + 12 + i * 16) * 0.4},${-R - 20}`} stroke={shade(look.hatColor, 0.22)} strokeWidth={2.5} fill="none" />)}
-        </Cel>
-        {trapper ? (
-          <path d={furBrim} fill={look.hatBand} stroke={OUT} strokeWidth={4} strokeLinejoin="round" />
-        ) : (
-          <g>
-            <rect x={-R - 8} y={-52} width={2 * R + 16} height={26} rx={12} fill={look.hatBand} stroke={OUT} strokeWidth={4} />
-            {Array.from({ length: 11 }, (_, i) => (
-              <path key={i} d={`M${-R + 2 + i * ((2 * R - 4) / 10)},-47 L${-R + 2 + i * ((2 * R - 4) / 10)},-31`} stroke={shade(look.hatBand, 0.14)} strokeWidth={3} />
-            ))}
-            <circle cx={view === "side" ? -10 : 0} cy={-R - 34} r={19} fill={look.hatBand} stroke={OUT} strokeWidth={4} />
-            <path d={`M${view === "side" ? -18 : -8},${-R - 40} q4,-4 9,0 M${view === "side" ? -6 : 4},${-R - 30} q4,-4 8,0`} stroke={shade(look.hatBand, 0.2)} strokeWidth={2.5} fill="none" />
-          </g>
+        {flapped && view === "side" && flap(-R * 0.12, 40)}
+        {hatKind === "cap" ? capEl : bare ? hairEl : (
+          <>
+            <Cel id={`${uid}hat`} d={domeD} fill={hood ? hoodC : look.hatColor} rim={rim}>
+              <rect x={shadeSide > 0 ? R * 0.35 : -R * 3} y={-R * 2} width={R * 2.6} height={R * 2} fill={shade(hood ? hoodC : look.hatColor, 0.16)} />
+              {beanie && Array.from({ length: 9 }, (_, i) => <path key={i} d={`M${-R + 12 + i * 16},-40 Q${-R + 14 + i * 16},${-R * 0.95} ${(-R + 12 + i * 16) * 0.4},${-R - 20}`} stroke={shade(look.hatColor, 0.22)} strokeWidth={2.5} fill="none" />)}
+            </Cel>
+            {trapper ? (
+              <path d={furBrim} fill={look.hatBand} stroke={OUT} strokeWidth={4} strokeLinejoin="round" />
+            ) : hood ? (
+              <path d={`M${-R - 9},-34 Q0,-62 ${R + 9},-34 L${R + 9},-22 Q0,-46 ${-R - 9},-22 Z`} fill={look.hatBand} stroke={OUT} strokeWidth={4} strokeLinejoin="round" />
+            ) : (
+              <g>
+                <rect x={-R - 8} y={-52} width={2 * R + 16} height={26} rx={12} fill={look.hatBand} stroke={OUT} strokeWidth={4} />
+                {Array.from({ length: 11 }, (_, i) => (
+                  <path key={i} d={`M${-R + 2 + i * ((2 * R - 4) / 10)},-47 L${-R + 2 + i * ((2 * R - 4) / 10)},-31`} stroke={shade(look.hatBand, 0.14)} strokeWidth={3} />
+                ))}
+                <circle cx={view === "side" ? -10 : 0} cy={-R - 34} r={19} fill={look.hatBand} stroke={OUT} strokeWidth={4} />
+                <path d={`M${view === "side" ? -18 : -8},${-R - 40} q4,-4 9,0 M${view === "side" ? -6 : 4},${-R - 30} q4,-4 8,0`} stroke={shade(look.hatBand, 0.2)} strokeWidth={2.5} fill="none" />
+              </g>
+            )}
+          </>
         )}
-        {trapper && flat(view) && [flap(-R - 2), flap(R + 2)]}
-        {trapper && view === "three" && flap(-R + 2, 34)}
+        {flapped && flat(view) && [flap(-R - 2), flap(R + 2)]}
+        {flapped && view === "three" && flap(-R + 2, 34)}
       </g>
       {puffs}
     </g>
@@ -464,8 +514,9 @@ export const Hero = ({ look, x, y, frame, seed = 0, pose = "stand", view, skel, 
   const w = torsoW(v, d.W);
   const hw = w / 2;
   const top = -d.T - 6;
-  const bot = d.hem;
-  const bw = hw * (parka ? 1.14 : 0.95);
+  const jacket = look.coatKind === "jacket";
+  const bot = d.hem - (jacket ? 22 : 0);
+  const bw = hw * (parka ? 1.14 : jacket ? 0.84 : 0.95);
   const tD = `M${-hw + 20},${top} Q0,${top - 8} ${hw - 20},${top} Q${hw + 4},${top + 2} ${hw + 2},${top + 34} Q${hw + 6},${(top + bot) / 2} ${bw},${bot - 16} Q${bw + 1},${bot} ${bw - 16},${bot} L${-bw + 16},${bot} Q${-bw - 1},${bot} ${-bw},${bot - 16} Q${-hw - 6},${(top + bot) / 2} ${-hw - 2},${top + 34} Q${-hw - 4},${top + 2} ${-hw + 20},${top} Z`;
   const zx = v === "front" ? 0 : v === "three" ? 0.2 * w : v === "side" ? hw - 10 : null;
   const headX = v === "side" ? 4 : v === "three" ? 3 : 0;
@@ -494,6 +545,12 @@ export const Hero = ({ look, x, y, frame, seed = 0, pose = "stand", view, skel, 
           <path d={`M${-hw - 6},${top + 46} Q0,${top + 58} ${hw + 6},${top + 46}`} stroke={shade(coat, 0.4)} strokeWidth={4} fill="none" />
           {v !== "back" && v !== "side" && [-1, 1].map((k) => <rect key={k} x={k * w * 0.27 - 22 + (zx ?? 0) * 0.5} y={bot - 74} width={44} height={16} rx={5} fill={shade(coat, 0.25)} stroke={OUT} strokeWidth={3} />)}
           <rect x={-bw - 4} y={bot - 12} width={2 * bw + 8} height={16} fill={shade(coat, 0.25)} />
+        </g>
+      ) : jacket ? (
+        <g>
+          <path d={`M${-hw - 6},${top + 40} Q0,${top + 52} ${hw + 6},${top + 40}`} stroke={shade(coat, 0.3)} strokeWidth={3.5} fill="none" />
+          {v !== "back" && v !== "side" && [-1, 1].map((k) => <rect key={k} x={k * w * 0.26 - 15 + (zx ?? 0) * 0.5} y={bot - 56} width={30} height={7} rx={3} fill={shade(coat, 0.3)} />)}
+          <rect x={-bw - 6} y={bot - 12} width={2 * bw + 12} height={16} fill={look.trim} stroke={OUT} strokeWidth={2.5} />
         </g>
       ) : (
         <g>

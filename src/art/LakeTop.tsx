@@ -1,8 +1,11 @@
 // Plan view of the same lake (TOP plate) and the close-up boot-print plate. World coordinates, 1080 x 1920 home.
 // Map scale: ~15 px per metre (60 m = shack door to hole). People are drawn as map symbols at true scale,
 // so the middle shots zoom in 5x.
+import { castTheme } from "../cast";
 import { useMemo } from "react";
-import { OUT, rand } from "./kit";
+import { OUT, rand, shade } from "./kit";
+import { HEROES } from "./heroes";
+import { castLook } from "../cast";
 import { lerp, mix, palette } from "./color";
 import type { World } from "../types";
 
@@ -18,13 +21,16 @@ export const T_U: [number, number] = [(T_DOOR[0] - T_HOLE[0]) / dist, (T_DOOR[1]
 export const M_PX = dist / 60; // pixels per metre
 const along = (m: number): [number, number] => [T_HOLE[0] + T_U[0] * m * M_PX, T_HOLE[1] + T_U[1] * m * M_PX];
 
+const lookOf = (id: "eli" | "brother") => ({ ...HEROES[id], ...castLook(id, HEROES[id]) });
+
 const GOLDEN = "#F5C518";
 
 // ---- top-down people ---------------------------------------------------------------------------
 const TopEli = ({ x, y, ang, roll, spread, frame }: { x: number; y: number; ang: number; roll: number; spread: number; frame: number }) => {
   // symbol drawn in design units (body axis along +y = head at -y), scaled so that Eli is ~26 px long.
   const sq = 0.45 + 0.55 * Math.abs(Math.cos(roll));
-  const wet = "#c4521f";
+  const L = lookOf("eli");
+  const wet = shade(L.coat, 0.2);
   return (
     <g transform={`translate(${x},${y}) rotate(${ang}) scale(0.27)`}>
       <ellipse cx={0} cy={6} rx={118} ry={150} fill="#000" opacity={0.18} />
@@ -32,26 +38,26 @@ const TopEli = ({ x, y, ang, roll, spread, frame }: { x: number; y: number; ang:
         {/* legs */}
         {[-1, 1].map((k) => (
           <g key={k} transform={`rotate(${k * 18},0,40)`}>
-            <rect x={-16} y={40} width={32} height={110} rx={15} fill="#2E3546" stroke={OUT} strokeWidth={6} />
-            <rect x={-20} y={134} width={40} height={34} rx={14} fill="#6B4A32" stroke={OUT} strokeWidth={6} />
+            <rect x={-16} y={40} width={32} height={110} rx={15} fill={L.pants} stroke={OUT} strokeWidth={6} />
+            <rect x={-20} y={134} width={40} height={34} rx={14} fill={L.boots} stroke={OUT} strokeWidth={6} />
           </g>
         ))}
         {/* arms spread */}
         {[-1, 1].map((k) => (
           <g key={k} transform={`rotate(${k * (118 + spread * 22)},0,-34)`}>
             <rect x={-18} y={-34} width={36} height={122} rx={17} fill={wet} stroke={OUT} strokeWidth={6} />
-            <circle cx={0} cy={96} r={20} fill="#3A3F4B" stroke={OUT} strokeWidth={6} />
+            <circle cx={0} cy={96} r={20} fill={L.gloves} stroke={OUT} strokeWidth={6} />
           </g>
         ))}
         {/* torso (ember puffy jacket) */}
-        <rect x={-48} y={-62} width={96} height={112} rx={36} fill="#F26B2A" stroke={OUT} strokeWidth={6} />
+        <rect x={-48} y={-62} width={96} height={112} rx={36} fill={L.coat} stroke={OUT} strokeWidth={6} />
         {[-24, 6, 36].map((yy) => (
-          <path key={yy} d={`M-46,${yy} Q0,${yy + 10} 46,${yy}`} stroke="#b84a18" strokeWidth={5} fill="none" />
+          <path key={yy} d={`M-46,${yy} Q0,${yy + 10} 46,${yy}`} stroke={shade(L.coat, 0.3)} strokeWidth={5} fill="none" />
         ))}
         {/* head + beanie + pompom */}
-        <circle cx={0} cy={-86} r={44} fill="#1E6F78" stroke={OUT} strokeWidth={6} />
-        <circle cx={0} cy={-86} r={26} fill="none" stroke="#EFE6D2" strokeWidth={8} opacity={0.9} />
-        <circle cx={0} cy={-86} r={16} fill="#EFE6D2" stroke={OUT} strokeWidth={5} />
+        <circle cx={0} cy={-86} r={44} fill={L.hat === "none" || L.hat === "cap" ? L.hair : L.hatColor} stroke={OUT} strokeWidth={6} />
+        <circle cx={0} cy={-86} r={26} fill="none" stroke={L.hatBand} strokeWidth={8} opacity={0.9} />
+        <circle cx={0} cy={-86} r={16} fill={L.hatBand} stroke={OUT} strokeWidth={5} />
       </g>
       {spread > 0 &&
         // spread-weight circles under arms and legs (green = weight shared over more ice)
@@ -70,22 +76,23 @@ const TopEli = ({ x, y, ang, roll, spread, frame }: { x: number; y: number; ang:
 
 const TopBrother = ({ x, y, ang, frame }: { x: number; y: number; ang: number; frame: number }) => {
   const s = Math.sin(frame * 0.55);
+  const L = lookOf("brother");
   return (
     <g transform={`translate(${x},${y}) rotate(${ang}) scale(0.3)`}>
       <ellipse cx={0} cy={0} rx={120} ry={130} fill="#000" opacity={0.2} />
       {[-1, 1].map((k) => (
-        <rect key={k} x={k * 28 - 20} y={30 + k * s * 28} width={40} height={120} rx={18} fill="#4A4A55" stroke={OUT} strokeWidth={6} />
+        <rect key={k} x={k * 28 - 20} y={30 + k * s * 28} width={40} height={120} rx={18} fill={L.pants} stroke={OUT} strokeWidth={6} />
       ))}
       {[-1, 1].map((k) => (
         <g key={k} transform={`rotate(${-k * s * 26},${k * 70},-30)`}>
-          <rect x={k * 70 - 20} y={-100} width={40} height={110} rx={18} fill="#2F7D4F" stroke={OUT} strokeWidth={6} />
-          <circle cx={k * 70} cy={-104} r={18} fill="#B58A5A" stroke={OUT} strokeWidth={5} />
+          <rect x={k * 70 - 20} y={-100} width={40} height={110} rx={18} fill={L.coat} stroke={OUT} strokeWidth={6} />
+          <circle cx={k * 70} cy={-104} r={18} fill={L.gloves} stroke={OUT} strokeWidth={5} />
         </g>
       ))}
-      <rect x={-72} y={-62} width={144} height={100} rx={34} fill="#2F7D4F" stroke={OUT} strokeWidth={6} />
-      <path d="M-70,-30 H70 M-70,2 H70 M-40,-60 V36 M0,-60 V36 M40,-60 V36" stroke="#1f5a37" strokeWidth={5} opacity={0.7} />
-      <circle cx={0} cy={-70} r={56} fill="#E3D5B8" stroke={OUT} strokeWidth={6} />
-      <circle cx={0} cy={-70} r={40} fill="#6A4A33" stroke={OUT} strokeWidth={5} />
+      <rect x={-72} y={-62} width={144} height={100} rx={34} fill={L.coat} stroke={OUT} strokeWidth={6} />
+      <path d="M-70,-30 H70 M-70,2 H70 M-40,-60 V36 M0,-60 V36 M40,-60 V36" stroke={shade(L.coat, 0.35)} strokeWidth={5} opacity={0.7} />
+      <circle cx={0} cy={-70} r={56} fill={L.hat === "trapper" || L.hat === "hood" ? L.hatBand : L.hat === "none" ? L.hair : L.hatColor} stroke={OUT} strokeWidth={6} />
+      <circle cx={0} cy={-70} r={40} fill={L.hat === "none" ? L.hair : L.hatColor} stroke={OUT} strokeWidth={5} />
       <rect x={-12} y={-96} width={24} height={52} rx={8} fill="#4A2E1E" opacity={0.5} />
     </g>
   );
@@ -119,7 +126,7 @@ const Pines = ({ pts, color, hi }: { pts: [number, number, number][]; color: str
 );
 
 export const LakeTop = ({ frame, local, len, world, props = {} }: { frame: number; local: number; len: number; world: World; props?: Record<string, number | boolean | string> }) => {
-  const P = palette(world.dusk);
+  const P = palette(world.dusk, castTheme());
   const t = Math.min(1, local / Math.max(1, len - 1));
   const hole = world.hole;
   const ramp = (name: string, w = 0.12) => (props[`${name}At`] !== undefined ? Math.max(0, Math.min(1, (t - Number(props[`${name}At`])) / w)) : Number(props[name] ?? 0));
@@ -205,15 +212,15 @@ export const LakeTop = ({ frame, local, len, world, props = {} }: { frame: numbe
           <stop offset={1} stopColor={P.iceBot} />
         </linearGradient>
         <linearGradient id="tpTongue" gradientUnits="userSpaceOnUse" x1="0" y1="255" x2="0" y2="1200">
-          <stop offset={0} stopColor="#33496a" />
-          <stop offset={1} stopColor="#1f2c44" />
+          <stop offset={0} stopColor={P.tongueTop} />
+          <stop offset={1} stopColor={P.tongueBot} />
         </linearGradient>
         <radialGradient id="tpWarm" cx="0.1" cy="0.3" r="0.9">
           <stop offset={0} stopColor={P.sun} stopOpacity={0.35 * P.sunA} />
           <stop offset={1} stopColor={P.sun} stopOpacity={0} />
         </radialGradient>
       </defs>
-      <rect x={X0} y={Y0} width={X1 - X0} height={Y1 - Y0} fill="#0b1520" />
+      <rect x={X0} y={Y0} width={X1 - X0} height={Y1 - Y0} fill={P.deep} />
       {/* shore: snowy trees all round the top and sides */}
       <rect x={X0} y={Y0} width={X1 - X0} height={420 - Y0} fill={P.pinesFar} />
       <Pines pts={trees} color={P.pines} hi={P.pinesFar} />
@@ -228,7 +235,7 @@ export const LakeTop = ({ frame, local, len, world, props = {} }: { frame: numbe
         <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#fff" opacity={0.28} />
       ))}
       {/* creek flowing into the lake + the thin clear-ice tongue */}
-      <path d="M392,-400 L392,60 Q388,200 392,300 L448,300 Q452,200 448,60 L448,-400 Z" fill="#2b3a52" />
+      <path d="M392,-400 L392,60 Q388,200 392,300 L448,300 Q452,200 448,60 L448,-400 Z" fill={P.creek} />
       <path d={`M${392},-400 L392,300 M448,-400 L448,300`} stroke="#dfeaf6" strokeWidth={5} opacity={0.6} />
       <path d={tongue} fill="url(#tpTongue)" />
       <path d={tongue} fill="none" stroke="#dfeaf6" strokeWidth={4} opacity={0.6} />
@@ -238,9 +245,9 @@ export const LakeTop = ({ frame, local, len, world, props = {} }: { frame: numbe
       })}
 
       {/* shack row (plan) */}
-      <Hut x={770} y={372} w={74} h={58} body="#6a7a8c" lit={P.window} glow={P.winGlow * 0.5} door={0} frame={frame} />
-      <Hut x={862} y={364} w={78} h={60} body="#b59b72" lit={P.window} glow={P.winGlow * 0.5} door={0} frame={frame} />
-      <Hut x={952} y={368} w={84} h={64} body="#b8322a" lit="#ffc56b" glow={1.2} door={door} frame={frame} smoke />
+      <Hut x={770} y={372} w={74} h={58} body={P.shacks[0][0]} lit={P.window} glow={P.winGlow * 0.5} door={0} frame={frame} />
+      <Hut x={862} y={364} w={78} h={60} body={P.shacks[1][0]} lit={P.window} glow={P.winGlow * 0.5} door={0} frame={frame} />
+      <Hut x={952} y={368} w={84} h={64} body={P.shacks[2][0]} lit={P.shackLit} glow={1.2} door={door} frame={frame} smoke />
       {/* fishing holes + old tracks scattered over the lake */}
       {Array.from({ length: 16 }, (_, i) => {
         const hx = 120 + rand(i * 5.3) * 880;
@@ -374,7 +381,7 @@ const Boot = ({ x, y, s, ang, front }: { x: number; y: number; s: number; ang: n
 const lift = (c: string) => mix(c, "#b9c4ee", 0.35);
 
 export const LakePrint = ({ frame, local, len, world, props = {} }: { frame: number; local: number; len: number; world: World; props?: Record<string, number | boolean | string> }) => {
-  const P = palette(world.dusk);
+  const P = palette(world.dusk, castTheme());
   const who = props.who === "brother" ? "brother" : "eli";
   const t = Math.min(1, local / Math.max(1, len - 1));
   const step = who === "eli" ? Math.min(1, t * 1.9) : 0;

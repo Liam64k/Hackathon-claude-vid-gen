@@ -3,6 +3,7 @@
 //   lake plane in perspective                     ->  front edge y=1560
 //   ice cross-section + moving creek water        ->  below y=1560 (same x as the plane above it)
 // State comes from data (World: dusk, crack, hole, wet) so any frame can be rendered alone.
+import { castTheme } from "../cast";
 import { useContext, useMemo } from "react";
 import { CamContext } from "../camera";
 import { FigureEl, figureStart } from "./Figures";
@@ -142,7 +143,7 @@ const Cracks = ({ a }: { a: number }) => {
 
 export const Lake = ({ frame, local, len, world, figures = [], props = {}, rim }: { frame: number; local: number; len: number; world: World; figures?: Figure[]; props?: Record<string, number | boolean | string>; rim?: Rim | null }) => {
   const { cam, home } = useContext(CamContext);
-  const P = palette(world.dusk);
+  const P = palette(world.dusk, castTheme());
   const dx = (cam.x - home.x) * 0.1; // far layers lag the camera a little
   const hole = world.hole;
   const gap = 150 * hole;
@@ -224,26 +225,26 @@ export const Lake = ({ frame, local, len, world, figures = [], props = {}, rim }
           <stop offset={1} stopColor={P.iceBot} />
         </linearGradient>
         <linearGradient id="lkTongue" gradientUnits="userSpaceOnUse" x1="0" y1={HZ} x2="0" y2={FE}>
-          <stop offset={0} stopColor="#3c4f6d" />
-          <stop offset={1} stopColor="#1f2c44" />
+          <stop offset={0} stopColor={P.tongueTop} />
+          <stop offset={1} stopColor={P.tongueBot} />
         </linearGradient>
         <linearGradient id="lkWater" gradientUnits="userSpaceOnUse" x1="0" y1={FE + 40} x2="0" y2="3700">
-          <stop offset={0} stopColor="#24456a" />
-          <stop offset={0.16} stopColor="#16263a" />
-          <stop offset={0.7} stopColor="#0a131f" />
-          <stop offset={1} stopColor="#0d2a2e" />
+          <stop offset={0} stopColor={P.water0} />
+          <stop offset={0.16} stopColor={P.water1} />
+          <stop offset={0.7} stopColor={P.water2} />
+          <stop offset={1} stopColor={P.water3} />
         </linearGradient>
         <linearGradient id="lkSlab" gradientUnits="userSpaceOnUse" x1="0" y1={FE} x2="0" y2={FE + 160}>
-          <stop offset={0} stopColor="#f2f8fd" />
-          <stop offset={1} stopColor="#9bbfdc" />
+          <stop offset={0} stopColor={P.slabTop} />
+          <stop offset={1} stopColor={P.slabBot} />
         </linearGradient>
         <linearGradient id="lkSlabX" gradientUnits="userSpaceOnUse" x1={HX - 640} y1="0" x2={HX + 640} y2="0">
-          <stop offset={0} stopColor="#dbe9f5" />
-          <stop offset={0.2} stopColor="#dbe9f5" />
+          <stop offset={0} stopColor={P.slabSide} />
+          <stop offset={0.2} stopColor={P.slabSide} />
           <stop offset={0.34} stopColor="#7eaad0" />
           <stop offset={0.66} stopColor="#7eaad0" />
-          <stop offset={0.8} stopColor="#dbe9f5" />
-          <stop offset={1} stopColor="#dbe9f5" />
+          <stop offset={0.8} stopColor={P.slabSide} />
+          <stop offset={1} stopColor={P.slabSide} />
         </linearGradient>
         <radialGradient id="lkGlint" cx="0.5" cy="0" r="0.8">
           <stop offset={0} stopColor={P.sun} stopOpacity={0.55} />
@@ -261,7 +262,7 @@ export const Lake = ({ frame, local, len, world, figures = [], props = {}, rim }
         {sunA > 0.01 && (
           <g opacity={sunA}>
             <circle cx={SUN_X} cy={P.sunY} r={420} fill="url(#lkSun)" />
-            <circle cx={SUN_X} cy={P.sunY} r={62} fill="#fff1c9" />
+            <circle cx={SUN_X} cy={P.sunY} r={62} fill={P.sunCore} />
           </g>
         )}
         <path d={PINES_BACK} fill={P.pinesFar} />
@@ -272,7 +273,7 @@ export const Lake = ({ frame, local, len, world, figures = [], props = {}, rim }
       {/* creek channel through the pines */}
       <g>
         <path d={`M${HX - 70},${HZ - 120} L${HX + 70},${HZ - 120} L${HX + 96},${HZ + 4} L${HX - 96},${HZ + 4} Z`} fill={P.pinesFar} opacity={0.85} />
-        <path d={`M${HX - 36},${HZ - 100} L${HX + 36},${HZ - 100} L${HX + 62},${HZ + 4} L${HX - 62},${HZ + 4} Z`} fill="#2b3a52" />
+        <path d={`M${HX - 36},${HZ - 100} L${HX + 36},${HZ - 100} L${HX + 62},${HZ + 4} L${HX - 62},${HZ + 4} Z`} fill={P.creek} />
         <path d={`M${HX - 12},${HZ - 98} L${HX + 12},${HZ - 98} L${HX + 20},${HZ + 4} L${HX - 20},${HZ + 4} Z`} fill={P.skyLow} opacity={0.35} />
       </g>
 
@@ -296,9 +297,9 @@ export const Lake = ({ frame, local, len, world, figures = [], props = {}, rim }
       <Cracks a={world.crack} />
 
       {/* ---------------- shack row ---------------- */}
-      <Shack x={1960} y={812} s={0.8} body="#6a7a8c" roof="#3d4756" lit={P.window} glow={winGlow * 0.6} frame={frame} />
-      <Shack x={2130} y={818} s={0.85} body="#b59b72" roof="#6b4f3a" lit={P.window} glow={winGlow * 0.6} frame={frame} />
-      <Shack x={2310} y={824} s={0.95} body="#b8322a" roof="#6e1c1a" lit="#ffc56b" glow={Math.max(0.8, winGlow * 1.3)} door={doorOpen} smoke frame={frame} />
+      <Shack x={1960} y={812} s={0.8} body={P.shacks[0][0]} roof={P.shacks[0][1]} lit={P.window} glow={winGlow * 0.6} frame={frame} />
+      <Shack x={2130} y={818} s={0.85} body={P.shacks[1][0]} roof={P.shacks[1][1]} lit={P.window} glow={winGlow * 0.6} frame={frame} />
+      <Shack x={2310} y={824} s={0.95} body={P.shacks[2][0]} roof={P.shacks[2][1]} lit={P.shackLit} glow={Math.max(0.8, winGlow * 1.3)} door={doorOpen} smoke frame={frame} />
 
       {/* ---------------- footprints + wet drag trail ---------------- */}
       {trailGlow > 0 && (
@@ -343,7 +344,7 @@ export const Lake = ({ frame, local, len, world, figures = [], props = {}, rim }
         <rect x={X0} y={FE - 4} width={X1 - X0} height={6} fill="#f6f9fc" />
         <rect x={X0} y={FE + 20} width={X1 - X0} height={3700 - FE} fill="url(#lkWater)" />
         {/* lake bed */}
-        <rect x={X0} y={3520} width={X1 - X0} height={400} fill="#0b1c20" />
+        <rect x={X0} y={3520} width={X1 - X0} height={400} fill={P.water3} />
         {stones.map((s, i) => (
           <ellipse key={i} cx={s.x} cy={3530} rx={s.r} ry={s.r * 0.35} fill="#13292c" />
         ))}
