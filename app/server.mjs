@@ -269,7 +269,7 @@ const routes = async (req, res, url) => {
     const topic = String(b.topic ?? "").trim();
     if (!b.surprise && !topic) return fail(res, 400, "Type a topic or press Surprise me.");
     if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
-    const s = store.createProject({ topic, surprise: !!b.surprise, format: b.format, length: Number(b.length) || 90, mode: MODE });
+    const s = store.createProject({ topic, surprise: !!b.surprise, format: b.format, length: b.length, mode: MODE });
     bus.send("project", { slug: s.slug });
     startStage(s.slug, "ideas", {});
     return json(res, 201, projectDetail(s.slug));

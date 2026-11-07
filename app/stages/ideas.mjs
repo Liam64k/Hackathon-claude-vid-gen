@@ -9,9 +9,9 @@ import { completedItems } from "../engine/parse.mjs";
 import { IDEAS_SCHEMA, safetyIssues, validateIdeas } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
 import { sleep } from "../engine/replay.mjs";
-import { PACK_BRIEF, PREAMBLE, formatText, lengthText } from "./prompts.mjs";
+import { PACK_BRIEF, PREAMBLE, formatText, lengthText, pastIdeas, pickAngles } from "./prompts.mjs";
 
-export const prompt = (p) => `${PREAMBLE}
+export const prompt = (p, angles = pickAngles(5), past = pastIdeas(p.slug)) => `${PREAMBLE}
 
 STAGE 1 — IDEAS for a vertical (9:16) narrated 2D survival short.
 ${p.surprise ? "Topic: SURPRISE ME — pick the five strongest premises yourself." : `Topic from the user: ${JSON.stringify(p.topic)}. If it does not fit the art pack, keep its spirit and move it onto the frozen lake (say so in "risk").`}
@@ -28,11 +28,15 @@ Then return exactly 5 clearly different ideas in the structured output (best fir
 - premise = WHO + CONSTRAINT + CLOCK + RESOURCE in one sentence a ten-year-old gets; it must pass the "wait, then what?" test.
 - hook = the first spoken line, under 14 words, using one of the skill's hook formulas.
 - twist = the common mistake or myth it busts, with the correct safe action.
-- world = how it uses the lake views, time of day and Eli / his brother.
+- world = how it uses the lake views, time of day and who the two figures are in this story (names and relationship).
 - diagrams = 3-5 on-screen explainers this pack can show.
 - fact = the key real number and the organisation that publishes it; verify = what must be checked before publishing.
 - score 0-9 = clear in 1 s (0-3) + non-obvious twist (0-3) + showable with this pack (0-3).
-"Ten Minutes Under" already exists (Eli falls through thin ice over a creek and self-rescues with 1-10-1); do not repeat it, a sequel is welcome.
+VARIETY (important): the five ideas must differ in situation, danger and cast. At most ONE idea may involve someone falling through the ice. Build idea N on angle N below (bend it to fit the topic):
+${angles.map((a, i) => `${i + 1}. ${a}`).join("\n")}
+Already made — do NOT reuse these titles, premises or twists:
+- Ten Minutes Under — Eli falls through thin ice over a creek and self-rescues with 1-10-1
+${past.map((t) => `- ${t}`).join("\n")}
 No web research. Do not write any files; the app saves your structured output.`;
 
 const streamCards = (ctx) => {

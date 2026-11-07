@@ -77,3 +77,31 @@ test("Remotion progress lines are parsed", () => {
   assert.deepEqual(parseProgress("Rendered 120/3225, time remaining: 2m"), { phase: "rendered", done: 120, total: 3225 });
   assert.equal(parseProgress("Bundling 50%"), null);
 });
+
+test("video length is free: any seconds, clamped, word and line targets scale", async () => {
+  const { clampSeconds, wordRange, lineRange, createProject } = await import("../lib/store.mjs");
+  assert.equal(clampSeconds(45), 45);
+  assert.equal(clampSeconds(5), 20);
+  assert.equal(clampSeconds(999), 180);
+  assert.equal(clampSeconds("abc"), 90);
+  assert.deepEqual(wordRange(90), [230, 280]);
+  assert.ok(wordRange(30)[1] < 100 && wordRange(150)[0] > 350);
+  assert.deepEqual(lineRange(90), [12, 18]);
+  const short = Array.from({ length: 5 }, () => ({ text: "Cold water steals heat fast so get out now and stay calm and still and breathe.", highlight: ["cold"] }));
+  assert.deepEqual(validateLines(short, 30).errors, []);
+  assert.ok(validateLines(short, 120).errors.some((e) => /lines for ~120 s/.test(e)));
+  assert.equal(typeof createProject, "function");
+});
+
+test("idea prompts vary: random angles and past ideas are named", async () => {
+  const { prompt } = await import("../stages/ideas.mjs");
+  const { pickAngles, ANGLES } = await import("../stages/prompts.mjs");
+  const a = pickAngles(5);
+  assert.equal(new Set(a).size, 5);
+  assert.ok(a.every((x) => ANGLES.includes(x)));
+  const p = prompt({ slug: "x", surprise: true, format: "story", length: 45 }, ["angle A", "angle B", "c", "d", "e"], ["Don't Run to Him — premise"]);
+  assert.match(p, /1\. angle A/);
+  assert.match(p, /Don't Run to Him/);
+  assert.match(p, /At most ONE idea/);
+  assert.match(p, /~45 s/);
+});

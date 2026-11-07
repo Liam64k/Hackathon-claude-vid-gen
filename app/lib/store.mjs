@@ -10,7 +10,17 @@ export const FORMATS = {
   what: "What would you do? — second person, the viewer is on the ice, choices with consequences",
   myth: "Myth vs fact — a common belief, why it is wrong, what really works",
 };
-export const LENGTHS = { 75: [190, 225], 90: [230, 280], 110: [270, 300] };
+// Video length in seconds is free (MIN_SECONDS..MAX_SECONDS). Narration runs ~2.6 words/s plus pauses.
+export const MIN_SECONDS = 20;
+export const MAX_SECONDS = 180;
+export const PRESET_LENGTHS = [30, 60, 90, 120];
+export const clampSeconds = (n) => {
+  const v = Math.round(Number(n));
+  return Number.isFinite(v) && v > 0 ? Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, v)) : 90;
+};
+export const wordRange = (sec) => { const s = clampSeconds(sec); return [Math.round(s * 2.56), Math.round(s * 3.11)]; };
+// Narration lines (caption beats) scale with length: ~one line per 5-7.5 s.
+export const lineRange = (sec) => { const s = clampSeconds(sec); return [Math.max(4, Math.round(s / 7.5)), Math.max(6, Math.round(s / 5))]; };
 
 export const slugify = (s) =>
   String(s ?? "")
@@ -52,7 +62,7 @@ export const createProject = ({ topic, surprise, format = "story", length = 90, 
     topic: surprise ? "" : String(topic ?? "").slice(0, 300),
     surprise: !!surprise || !topic,
     format: FORMATS[format] ? format : "story",
-    length: LENGTHS[length] ? Number(length) : 90,
+    length: clampSeconds(length),
     pack: "winter-lake",
     mode,
     createdAt: new Date().toISOString(),

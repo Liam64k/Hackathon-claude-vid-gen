@@ -4,7 +4,11 @@ const STAGES = ["ideas", "script", "shots", "voice", "render"];
 const LABEL = { ideas: "Ideas", script: "Script", shots: "Storyboard", voice: "Voice", render: "Render" };
 const SCREEN = { ideas: "ideas", script: "script", shots: "storyboard", voice: "voice", render: "render", done: "render" };
 const FORMATS = [["story", "Survival story"], ["what", "What would you do?"], ["myth", "Myth vs fact"]];
-const LENGTHS = { 75: [190, 225], 90: [230, 280], 110: [270, 300] };
+// Same rules as app/lib/store.mjs (the server clamps too).
+const PRESET_LENGTHS = [30, 60, 90, 120];
+const MIN_S = 20, MAX_S = 180;
+const clampS = (n) => { const v = Math.round(Number(n)); return Number.isFinite(v) && v > 0 ? Math.min(MAX_S, Math.max(MIN_S, v)) : 90; };
+const wordRange = (sec) => { const s = clampS(sec); return [Math.round(s * 2.56), Math.round(s * 3.11)]; };
 const RUNNING_COPY = {
   ideas: "Claude is writing five ideas",
   script: "Claude is writing the script and beat board",
@@ -315,7 +319,10 @@ function homeView() {
         onkeydown: (e) => { if (e.key === "Enter") submit(false); } }),
       h("div.opts", {},
         h("label", {}, "Format"), h("div.chips", { role: "group", "aria-label": "Format" }, FORMATS.map(([k, l]) => h("button.chip", { "aria-pressed": String(S.ui.format === k), onclick: () => { S.ui.format = k; renderMain(); } }, l))),
-        h("label", {}, "Length"), h("div.chips", { role: "group", "aria-label": "Length" }, Object.keys(LENGTHS).map((k) => h("button.chip", { "aria-pressed": String(S.ui.length === Number(k)), onclick: () => { S.ui.length = Number(k); renderMain(); } }, `~${k} s`)))),
+        h("label", { for: "secs" }, "Length"), h("div.chips", { role: "group", "aria-label": "Length" },
+          PRESET_LENGTHS.map((k) => h("button.chip", { "aria-pressed": String(S.ui.length === k), onclick: () => { S.ui.length = k; renderMain(); } }, `${k} s`)),
+          h("span.secs", {}, h("input#secs", { id: "secs", type: "number", min: MIN_S, max: MAX_S, step: 5, value: S.ui.length, "aria-label": `Length in seconds (${MIN_S}-${MAX_S})`,
+            onchange: (e) => { S.ui.length = clampS(e.target.value); renderMain(); } }), h("span.small.muted", {}, "sec")))),
       h("div.row", {},
         h("button.btn.primary.lg#go", { id: "go", onclick: () => submit(false), disabled: !S.ui.topic.trim() }, "Make 5 ideas"),
         h("button.btn.ice.lg", { onclick: () => submit(true) }, "✦ Surprise me"),
@@ -377,7 +384,7 @@ function scriptView() {
   const lines = d.lines ?? [];
   const editable = st === "review" && !d.example;
   const total = lines.reduce((a, l) => a + words(l.text), 0);
-  const [lo, hi] = LENGTHS[d.state.length] ?? LENGTHS[90];
+  const [lo, hi] = wordRange(d.state.length);
   const secs = Math.round(total / 2.6 + lines.length * 0.3);
   const tab = S.ui.scriptTab;
   // Edits apply to the live lines at once (so nothing typed is lost), saves run one after another with

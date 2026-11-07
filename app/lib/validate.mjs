@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { ROOT, RUNTIME, SHOTS_TS, APP } from "./paths.mjs";
-import { LENGTHS } from "./store.mjs";
+import { lineRange, wordRange } from "./store.mjs";
 
 // ---- safety (BUILD-PROMPT §3.7) -------------------------------------------------------------------
 // Survival topics: safe, widely known advice only. No chemistry, weapons, medicine doses, live
@@ -74,7 +74,9 @@ const norm = (w) => w.toLowerCase().replace(/[^a-z0-9'’-]/g, "");
 export const validateLines = (lines, length = 90) => {
   const errs = [];
   if (!Array.isArray(lines)) return { errors: ["lines.json must be a JSON array"], words: 0 };
-  if (lines.length < 8 || lines.length > 24) errs.push(`expected 8-24 lines, got ${lines.length}`);
+  const [minL, maxL] = lineRange(length);
+  const lmin = Math.max(3, minL - 4), lmax = maxL + 6;
+  if (lines.length < lmin || lines.length > lmax) errs.push(`expected ${lmin}-${lmax} lines for ~${length} s, got ${lines.length}`);
   lines.forEach((l, i) => {
     if (!l || typeof l.text !== "string" || !l.text.trim()) return errs.push(`line ${i}: text missing`);
     if (!Array.isArray(l.highlight)) return errs.push(`line ${i}: highlight must be an array of words`);
@@ -89,7 +91,7 @@ export const validateLines = (lines, length = 90) => {
     if (unsafe.length) errs.push(`line ${i}: unsafe content (${unsafe.join(", ")})`);
   });
   const words = wordCount(lines.filter((l) => l && typeof l.text === "string"));
-  const [lo, hi] = LENGTHS[length] ?? LENGTHS[90];
+  const [lo, hi] = wordRange(length);
   if (words < lo || words > hi) errs.push(`script is ${words} words; target ${lo}-${hi} for ~${length} s`);
   return { errors: errs, words };
 };
@@ -130,6 +132,7 @@ export const validateShots = ({ LINES, SHOTS }, lines) => {
     if (!s.from || typeof s.from.zoom !== "number") errs.push(`shot ${s.id ?? i}: camera "from" missing`);
   });
   LINES.forEach((_, i) => { if (!used.has(i)) errs.push(`line ${i} has no shot`); });
-  if (SHOTS.length < 12 || SHOTS.length > 60) errs.push(`expected 12-60 shots, got ${SHOTS.length}`);
+  const smin = Math.max(4, LINES.length), smax = Math.max(60, LINES.length * 4);
+  if (SHOTS.length < smin || SHOTS.length > smax) errs.push(`expected ${smin}-${smax} shots, got ${SHOTS.length}`);
   return errs;
 };

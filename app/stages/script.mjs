@@ -6,7 +6,7 @@ import { APP, EXAMPLE_DIR, episodeDir, rel } from "../lib/paths.mjs";
 import { readJson, writeJson } from "../lib/store.mjs";
 import { validateLines, wordCount } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
-import { PACK_BRIEF, PREAMBLE, formatText, lengthText } from "./prompts.mjs";
+import { PACK_BRIEF, PREAMBLE, formatText, lengthText, lineText } from "./prompts.mjs";
 
 export const files = (slug) => {
   const d = episodeDir(slug);
@@ -31,7 +31,7 @@ Read only:
 - the first 70 lines of episodes/ten-minutes-under/script.md (FORMAT reference only; never copy its story or lines)
 
 Write exactly these three files:
-1. ${rel(f.lines)} — a JSON array: [{"text": "...", "highlight": ["word", "word:r"]}, ...]. 12-18 narration lines of 1-3 sentences, ${lengthText(p.length)}. Every number spelled out in words ("ten centimeters", "nine-one-one"); no digits anywhere. highlight = 1-3 words copied exactly from that line, lowercase, punctuation removed ("brother's" keeps its apostrophe); add ":r" for danger words, ":g" for the correct action, default gold. One coloured word per caption phrase of about six words.
+1. ${rel(f.lines)} — a JSON array: [{"text": "...", "highlight": ["word", "word:r"]}, ...]. ${lineText(p.length)} of 1-3 sentences, ${lengthText(p.length)}. Every number spelled out in words ("ten centimeters", "nine-one-one"); no digits anywhere. highlight = 1-3 words copied exactly from that line, lowercase, punctuation removed ("brother's" keeps its apostrophe); add ":r" for danger words, ":g" for the correct action, default gold. One coloured word per caption phrase of about six words.
 2. ${rel(f.script)} — title, premise, the five-part skeleton as a table (hook / everyone's mistake / what really happens / what to do / twist or part two), the narration as ONE block with one blank line between lines (identical text to lines.json), and "Facts to verify": each fact, its number and the organisation that publishes it.
 3. ${rel(f.shotlist)} — the beat board: for every narration line, 2-3 shots in a table: id (1a, 1b...), seconds, scene (lakeSide | lakeCut | lakeTop | lakePrint), camera (size + move), figures + pose, on-screen UI (callout / stamp / card / HUD change), purpose. Every number spoken appears on screen when it is said; a UI change every ~3 s; at least three explanatory diagrams in the video.
 
