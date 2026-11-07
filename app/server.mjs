@@ -2,8 +2,9 @@
 // random token on every /api and /files request (the URL printed and opened at start carries it).
 import http from "node:http";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { createReadStream, existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { chmodSync, createReadStream, existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { pipeline } from "node:stream";
@@ -586,6 +587,17 @@ const recoverInterrupted = () => {
   }
 };
 
+// The Mac app (Studio.app) reopens a running live Studio instead of starting a second one. It can't read
+// files in ~/Documents (macOS privacy), so the note lives in ~/Library/Application Support/Studio,
+// owner-only, and is removed on exit. Only the live server writes it.
+const RUNNING_NOTE = process.platform === "darwin" && MODE === "live" && !process.env.NODE_TEST_CONTEXT
+  ? path.join(os.homedir(), "Library", "Application Support", "Studio", "running-live.json") : null;
+const noteRunning = (link) => {
+  if (!RUNNING_NOTE || store.readJson(LOCK)?.pid !== process.pid) return;
+  try { store.writeJson(RUNNING_NOTE, { pid: process.pid, port: PORT, link }); chmodSync(RUNNING_NOTE, 0o600); } catch { /* optional */ }
+};
+const clearRunning = () => { try { if (RUNNING_NOTE && store.readJson(RUNNING_NOTE)?.pid === process.pid) rmSync(RUNNING_NOTE, { force: true }); } catch { /* ignore */ } };
+
 const openBrowser = (u) => {
   if (process.env.STUDIO_NO_OPEN || process.argv.includes("--no-open")) return;
   const [cmd, args] = process.platform === "win32" ? ["cmd.exe", ["/c", "start", '""', `"${u}"`]] : process.platform === "darwin" ? ["open", [u]] : ["xdg-open", [u]];
@@ -601,6 +613,7 @@ const shutdown = (sig) => {
   const busy = cancel();
   if (busy) console.log(`\n  ${sig}: stopping the running step (its state is kept; Resume it next time)…`);
   try { if (store.readJson(LOCK)?.pid === process.pid) rmSync(LOCK, { force: true }); } catch { /* ignore */ }
+  clearRunning();
   setTimeout(() => process.exit(0), busy ? 1500 : 0);
 };
 // Last resort: an unexpected async error is logged, never fatal for the whole studio.
@@ -619,6 +632,7 @@ export const start = () =>
       });
       server.listen(PORT, HOST, () => {
         const link = `http://${HOST}:${PORT}/?t=${TOKEN}`;
+        noteRunning(link);
         console.log(`\n  Studio is running (${MODE === "replay" ? "REPLAY mode: recorded runs, no Claude calls" : "live mode"})`);
         console.log(`  Open: ${link}\n  Local only (127.0.0.1). Keep this link private. Ctrl+C to stop.\n`);
         openBrowser(link);

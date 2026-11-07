@@ -11,3 +11,6 @@ episodes/*/episode.mp4
 # Local data and tool caches
 episodes/_boards/
 .impeccable/hook.cache.json
+
+# built apps (npm run app:mac)
+dist/
