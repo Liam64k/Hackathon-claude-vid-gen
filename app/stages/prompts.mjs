@@ -4,6 +4,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { APP, EPISODES } from "../lib/paths.mjs";
 import { FORMATS, STYLES, clampSeconds, lineRange, wordRange } from "../lib/store.mjs";
+import { describeLook } from "../lib/cast-data.mjs";
+import { SPARK } from "../ui/spark-words.js";
 
 // Every stage prompt starts with this (the studio CLAUDE.md says "stop for approval"; the app does that).
 export const PREAMBLE = "The app handles approvals. Do only this stage, write the files named, then stop.";
@@ -26,9 +28,9 @@ export const packCatalog = () => readFileSync(path.join(APP, "pack-catalog.json"
 export const PACK_BRIEF = `HOW STORY AND ART FIT TOGETHER: write the story the TOPIC asks for (any safe survival, disaster or preparedness scenario: nuclear war and fallout shelters, a zombie outbreak told as fiction that teaches real preparedness, blackouts, floods, wildfires, storms, heat, getting lost, winter and cold water). Its setting, characters and names come from the topic, never from the art. Only winter and cold-water topics are set on ice.
 The drawings come from one fixed ART PACK, "Winter Lake" (no new art can be drawn). Later stages borrow it as a stage set: the red shack becomes a shelter, bunker or house; the shore and pines become a street edge or a horizon; the night sky becomes a blackout; stamps, tags, deltas, callouts and diagrams carry the countdowns, supplies and rules. Never claim art that does not exist, and note in "risk" how the topic will be shown with this set.
 - Views: a SIDE view (pine shore, three small shacks, a red shack, a trail of footprints, open flat ground), a CUT cross-section (layers, a ruler, moving water), a TOP map view (shore, paths, buildings, arrows, a route) and a footprint close-up. Times of day: sunset, blue hour, night.
-- Two figure drawings, "eli" (adult, orange jacket) and "brother" (a second adult). They are only puppets: name and cast them for THIS story (friends, a parent, a coworker, a neighbour, a stranger); do not call anyone Eli. One figure alone is fine. Poses: walking, running, standing, lying, rolling, panic, a red dashed "mistake" ghost (plus in-water poses for cold-water stories).
+- Two adult figure puppets, "the lead" and "the second" (clothes, names and relationship are set per episode). One figure alone is fine. Poses: walking, running, standing, lying, rolling, panic, a red dashed "mistake" ghost (plus in-water poses for cold-water stories).
 - Story devices that take ANY text, so they carry non-winter stories: callouts with arrows, stamps ("STEP 1", "RULE #2"), tags, delta pops ("+2 L", "-1 DAY"), ticks, speech/thought bubbles, a swatch chip with custom text; plus a freeze-frame "paused" look, white flash, whip-zoom, shake, snow.
-- Fixed-text pieces, winter and cold-water stories only: the HUD pills (a "DEC" clock, ICE cm, WATER 0 °C, IN WATER / OUT timers, the 1-10-1 phase strip, BROTHER n M) and the title, ice-ladder, 1-10-1, 911 and "PART 2" cards. Other topics show countdowns, supplies and rules with stamps, tags, deltas and callouts instead.`;
+- Fixed-text pieces, winter and cold-water stories only: the HUD pills (a "DEC" clock, ICE cm, WATER 0 °C, IN WATER / OUT timers, the 1-10-1 phase strip, a "<NAME> n M" distance pill) and the title, ice-ladder, 1-10-1, 911 and "PART 2" cards. Other topics show countdowns, supplies and rules with stamps, tags, deltas and callouts instead.`;
 
 // Video length in seconds (any value; clamped to the allowed range).
 export const lengthText = (n) => {
@@ -68,7 +70,7 @@ export const SCENARIO_ANGLES = [
   "lost on a hike as the light goes: stop, stay, signal",
 ];
 export const WINTER_ANGLES = [
-  "the second person is the hero and the orange-jacket figure is the one who needs help",
+  "the second person is the hero and the lead is the one who needs help",
   "nobody falls in: the danger is getting lost in a whiteout or at night",
   "the danger arrives hours later (hypothermia, wet clothes, the walk home)",
   "frostbite and keeping hands and feet working",
@@ -120,3 +122,28 @@ export const styleText = (style) => {
 // Output size note for the shots stage (only when not 9:16).
 export const outputText = (o) =>
   !o || o.ratio === "9:16" ? "" : `The video is ${o.width}x${o.height}; the 9:16 scene is framed inside it, keep key action and text in the centre.`;
+
+// Per-episode cast + theme (state.cast; null = legacy, no text). Ids stay "eli"/"brother" in shots.ts.
+const THEME_PLACE = {
+  winter: ["Winter dusk", "a frozen lake shore at dusk; shacks are huts; snow"],
+  summer: ["Summer evening", "a green lakeside or park in summer; the flat ground is grass or water; shacks are cabins"],
+  nightCity: ["Night city", "the open ground reads as an empty city square at night; shacks are kiosks/houses; pines are the skyline edge"],
+  wildfire: ["Wildfire haze", "a town edge under orange smoke; shacks are homes; pines are the burning ridge; ash"],
+  storm: ["Storm flood", "a flooded low street or riverbank in heavy rain; shacks are houses; rain"],
+  fallout: ["Fallout grey", "a grey, ash-dusted town after a blast; the red shack is the shelter; ash"],
+  blackout: ["Blackout night", "a neighbourhood with every light out; shacks are houses; one lit window at most"],
+  desert: ["Desert heat", "open desert or a dusty roadside in harsh sun; shacks are sheds; pines are a far ridge"],
+};
+export const castText = (p) => {
+  const c = p?.cast;
+  if (!c?.lead) return "";
+  const who = (k, r) => c[k] ? `${r} = ${c[k].name} (${describeLook(c[k].look)})` : "";
+  return `CAST (fixed for this episode; use these names, not new ones): ${[who("lead", "the lead, figure id \"eli\""), who("second", "the second, figure id \"brother\"")].filter(Boolean).join("; ")}.`;
+};
+export const placeText = (p) => {
+  const t = THEME_PLACE[p?.cast?.theme];
+  if (!t) return "";
+  return `PLACE: theme "${t[0]}" — the art is recoloured so ${t[1]}. Write and frame the place this way${p.cast.particles ? `; particles: ${p.cast.particles}` : ""}.`;
+};
+// "Setting dice": two random scenario/place sparks per run (optional inspiration).
+export const settingDice = (rnd = Math.random) => [shuffle(SPARK.scenario, rnd)[0], shuffle(SPARK.place, rnd)[0]];

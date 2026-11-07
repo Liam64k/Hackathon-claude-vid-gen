@@ -42,6 +42,7 @@ clarity, glow and constant change.
 4. **World + beat board** — design the persistent world(s), list every beat with: narration
    line, camera move, UI events (counter deltas, callouts, cards, stamps), SFX.
    `references/scene-planning.md`
+   Characters and place per episode: `references/cast-and-theme.md`.
 5. **GATE 1** — show the user premise, script and beat board. Wait for approval.
 6. **Build** — art per `references/visual-style.md`, motion per `references/animation.md`, code
    layout per `references/project-structure.md`. Reuse components in `src/art`, `src/overlay`.

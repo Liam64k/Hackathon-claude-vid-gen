@@ -205,7 +205,7 @@ const assets = () => {
   const images = existsSync(style) ? readdirSync(style).filter((f) => f.endsWith(".png")).map((f) => ({ name: f.replace(/\.png$/, "").replace(/-/g, " "), path: `out/style/${f}` })) : [];
   const clips = clipPaths(path.join(EXAMPLE_BUILD, "voice"));
   const lines = store.readJson(path.join(ROOT, "app", "replays", "artifacts", "lines.json")) ?? [];
-  return { images, clips: clips.map((p, i) => ({ path: p, text: lines[i]?.text ?? "" })), pack: { id: "winter-lake", name: "Winter Lake", scenes: ["lakeSide", "lakeCut", "lakeTop", "lakePrint"], cast: ["Eli", "his brother"] } };
+  return { images, clips: clips.map((p, i) => ({ path: p, text: lines[i]?.text ?? "" })), pack: { id: "winter-lake", name: "Winter Lake", scenes: ["lakeSide", "lakeCut", "lakeTop", "lakePrint"], cast: ["the lead", "the second"] } };
 };
 
 // ---- routes ----------------------------------------------------------------------------------------

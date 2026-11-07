@@ -55,7 +55,9 @@ export const checkout = (slug) => {
   const audio = dir && existsSync(path.join(dir, "audio.json")) ? readFileSync(path.join(dir, "audio.json")) : JSON.stringify({ voice: {}, sfx: {} }, null, 2) + "\n";
   writeFileSync(AUDIO_JSON, audio);
   writeFileSync(EDITS_JSON, dir && existsSync(path.join(dir, "edits.json")) ? readFileSync(path.join(dir, "edits.json")) : "null\n");
-  writeFileSync(CAST_JSON, dir && existsSync(path.join(dir, "cast.json")) ? readFileSync(path.join(dir, "cast.json")) : "null\n");
+  // cast.json can exist before the first build (chosen on the Cast screen), so look in the build folder directly
+  const castFile = path.join(buildDir(slug), "cast.json");
+  writeFileSync(CAST_JSON, existsSync(castFile) ? readFileSync(castFile) : "null\n");
   for (const f of voiceClips(VOICE_DIR)) rmSync(path.join(VOICE_DIR, f));
   if (dir) for (const f of voiceClips(path.join(dir, "voice"))) copyFileSync(path.join(dir, "voice", f), path.join(VOICE_DIR, f));
   setOwner(slug);

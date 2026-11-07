@@ -110,13 +110,13 @@ export const CastSheet = () => {
         <Label x={1745} y={1212}>WALK</Label>
         <Label x={1995} y={1212}>TALK</Label>
 
-        {/* expressions: Eli then brother, 4 per row */}
-        {[...EXPRS.map((e) => ({ look: eli, e })), ...EXPRS.map((e) => ({ look: bro, e }))].map(({ look, e }, i) => {
+        {/* expressions of the second character (right panel), 4 per row */}
+        {EXPRS.map((e, i) => {
           const cx = 1080 + 135 + (i % 4) * 270;
           const cy = 1262 + Math.floor(i / 4) * 222;
           return (
             <g key={i}>
-              <HeroHead look={look} x={cx} y={cy + 92} frame={frame} expr={e} view={i % 2 === 0 ? "front" : "three"} scale={0.82} seed={i} />
+              <HeroHead look={bro} x={cx} y={cy + 92} frame={frame} expr={e} view={i % 2 === 0 ? "front" : "three"} scale={0.82} seed={i} />
               <Label x={cx} y={cy + 206} size={34}>{e.toUpperCase()}</Label>
             </g>
           );

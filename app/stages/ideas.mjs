@@ -9,7 +9,7 @@ import { completedItems } from "../engine/parse.mjs";
 import { IDEAS_SCHEMA, isWinterTopic, safetyIssues, validateIdeas } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
 import { sleep } from "../engine/replay.mjs";
-import { PACK_BRIEF, PREAMBLE, formatText, styleText, lengthText, pastIdeas, pickAngles } from "./prompts.mjs";
+import { PACK_BRIEF, PREAMBLE, formatText, styleText, lengthText, pastIdeas, pickAngles, castText, placeText, settingDice } from "./prompts.mjs";
 import { seriesText } from "./sequel.mjs";
 
 // How much winter a project may have: Surprise me, a winter topic (or a winter series), or none.
@@ -27,7 +27,7 @@ ${styleText(p.style)}
 Format: ${formatText(p.format)}
 Length: ${lengthText(p.length)}
 
-${PACK_BRIEF}
+${PACK_BRIEF}${castText(p) ? `\n${castText(p)} Ideas may change the lead's age, job and situation but keep these names.` : ""}${placeText(p) ? `\n${placeText(p)}` : ""}
 
 Read only these two files first:
 - .claude/skills/story-explainer-2d/references/survival-format.md
@@ -41,8 +41,9 @@ Then return exactly 5 clearly different ideas in the structured output (best fir
 - diagrams = 3-5 on-screen explainers this pack can show.
 - fact = the key real number and the organisation that publishes it; verify = what must be checked before publishing.
 - score 0-9 = clear in 1 s (0-3) + non-obvious twist (0-3) + stakes the viewer feels (0-3).
-VARIETY (important): the five ideas must differ in situation, danger and cast. ${iceRules(p).winterOk ? "At most ONE idea may involve someone falling through the ice." : iceRules(p).surprise ? "At most TWO ideas may be set on ice or a frozen lake; the others are other survival scenarios." : "This topic is NOT about winter: no idea may be set on ice or a frozen lake."} Build idea N on angle N below (bend it to fit the topic):
+VARIETY (important): the five ideas must differ in situation, danger, setting and protagonist (age, job, situation); never reuse a protagonist or setting from the used titles below. ${iceRules(p).winterOk ? "At most ONE idea may involve someone falling through the ice." : iceRules(p).surprise ? "At most TWO ideas may be set on ice or a frozen lake; the others are other survival scenarios." : "This topic is NOT about winter: no idea may be set on ice or a frozen lake."} Build idea N on angle N below (bend it to fit the topic):
 ${angles.map((a, i) => `${i + 1}. ${a}`).join("\n")}
+Optional setting dice (inspiration only, skip if off-topic): ${settingDice().join("; ")}.
 Titles already used (do not reuse them or remake their stories): ${["Ten Minutes Under", ...past].join("; ")}
 No web research. Do not write any files; the app saves your structured output.`;
 

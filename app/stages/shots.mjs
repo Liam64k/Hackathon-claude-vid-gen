@@ -11,21 +11,21 @@ import { checkout, saveCurrent, EXAMPLE_BUILD } from "../lib/workspace.mjs";
 import { storyboard, typecheck } from "../lib/remotion-tasks.mjs";
 import { StageError } from "../jobs.mjs";
 import { sleep } from "../engine/replay.mjs";
-import { PREAMBLE, packCatalog, styleText, outputText } from "./prompts.mjs";
+import { PREAMBLE, packCatalog, styleText, outputText, castText, placeText } from "./prompts.mjs";
 import { files as scriptFiles } from "./script.mjs";
 
 export const prompt = (p, lines) => `${PREAMBLE}
 
 STAGE 3 — SHOTS. Turn the approved script and beat board into src/shots.ts for the Winter Lake pack.
 Episode slug: ${p.slug}
-${styleText(p.style)}${outputText(p.output) ? `\n${outputText(p.output)}` : ""}
+${styleText(p.style)}${outputText(p.output) ? `\n${outputText(p.output)}` : ""}${castText(p) ? `\n${castText(p)} Keep each person on the same figure id in every shot; callouts/stamps use their names.` : ""}${placeText(p) ? `\n${placeText(p)} Pick particles (or none) that fit this theme.` : ""}
 
 APPROVED NARRATION — must become LINES exactly (same order, same text, same highlight arrays):
 ${JSON.stringify(lines, null, 1)}
 
 BEAT BOARD: read ${rel(scriptFiles(p.slug).shotlist)} once.
 
-src/shots.ts holds the template (the example episode "Ten Minutes Under", or this episode's previous version). Read it once. Keep its header comment style, the type-only imports, the helpers (v, eli, brother, inHole, inCut), constants and colours. Replace TITLE (= "${p.slug}"), LINES and the RAW shot array for the new episode. Keep \`export const SHOTS = RAW.map(...)\`.
+src/shots.ts holds the template (the example episode "Ten Minutes Under", or this episode's previous version). Read it once. Keep its header comment style, the type-only imports, the helpers (v, eli = the lead, brother = the second, inHole, inCut), constants and colours. Replace TITLE (= "${p.slug}"), LINES and the RAW shot array for the new episode. Keep \`export const SHOTS = RAW.map(...)\`.
 
 PACK CATALOG — the ONLY legal scenes, props, poses, views, expressions, events, cards and HUD fields (anything else fails typecheck or draws nothing):
 ${packCatalog()}
@@ -36,7 +36,7 @@ Rules:
 - A UI change (callout, stamp, tag, tick, card, HUD value) about every 3 s; a camera move or cut at least every 6 s; vary scenes and shot sizes.
 - Every number spoken appears on screen when said (digits + unit: "6 CM"). On-screen text uppercase, short (≤ 22 characters per callout).
 - Cards with fixed text (title, ladder, part2, the oneTenOne chip, phone911) only where their text is literally true for THIS story; otherwise use callouts, stamps, tags, swatch with opts.text, angle.
-- HUD: the clock pill always reads "DEC"; use water / phase / strip / brother fields only if the story really is that situation.
+- HUD: the clock pill always reads "DEC"; use water / phase / strip / brother (distance) fields only if the story really is that situation.
 - Keep faces and the HUD out of the caption band (cap "mid" = 64 % height; use cap "high" when the action is low).
 - When done, run exactly \`npm run typecheck\` (no pipes, no extra flags) and fix every error until it passes. Then stop.`;
 

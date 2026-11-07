@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, statSync } from "node:fs";
 import { elevenKey } from "./secrets.mjs";
 import path from "node:path";
+import { CAST_MODES, randomCast, normalizeCast } from "./cast-data.mjs";
 import { EPISODES, EXAMPLE_SLUG, episodeDir } from "./paths.mjs";
 
 export const STAGES = ["ideas", "script", "shots", "voice", "render"];
@@ -72,6 +73,9 @@ const withDefaults = (s) => {
   s.voice = { voiceId: null, provider: null, model: null, credit: false, ...(s.voice ?? {}) };
   // chosen provider (elevenlabs | placeholder | none); a run records what it actually used in the same field
   if (!normalizeVoiceProvider(s.voice.provider) && !/^elevenlabs/.test(s.voice.provider ?? "")) s.voice.provider = elevenKey() ? "elevenlabs" : "placeholder";
+  // cast: null on old projects = the legacy look; new projects always have one
+  if (s.cast === undefined || (s.cast !== null && typeof s.cast !== "object")) s.cast = null;
+  if (!CAST_MODES.includes(s.castMode)) s.castMode = "random";
   return s;
 };
 
@@ -103,11 +107,15 @@ const stateFile = (slug) => path.join(episodeDir(slug), "state.json");
 
 export const blankStage = () => ({ status: "idle", sessionId: null, cost: 0, startedAt: null, endedAt: null, error: null, warnings: [], attempts: 0 });
 
-export const createProject = ({ topic, surprise, format = "story", length = 90, mode = "live", style, output, seed, entry, series, voice }) => {
+export const createProject = ({ topic, surprise, format = "story", length = 90, mode = "live", style, output, seed, entry, series, voice, cast, castMode, theme }) => {
   const base = surprise || !topic ? "surprise" : slugify(topic).split("-").slice(0, 5).join("-");
   let slug = `${base}-${stamp()}`;
   let n = 2;
   while (existsSync(episodeDir(slug))) slug = `${base}-${stamp()}-${n++}`;
+  const picked = cast ? normalizeCast(cast) : null;
+  const mode = CAST_MODES.includes(castMode) ? castMode : picked && !picked.errors.length ? "manual" : "random";
+  const castState = picked && !picked.errors.length ? picked.cast : { ...randomCast(slug), theme: "auto", particles: "auto" };
+  if (theme && castState.theme === "auto") castState.theme = normalizeCast({ ...castState, theme }).cast.theme;
   const state = {
     version: 1,
     slug,
@@ -126,6 +134,8 @@ export const createProject = ({ topic, surprise, format = "story", length = 90, 
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     pick: null,
+    cast: castState,
+    castMode: mode,
     voice: { voiceId: null, provider: normalizeVoiceProvider(voice?.provider), model: null, credit: false },
     stages: Object.fromEntries(STAGES.map((s) => [s, blankStage()])),
   };

@@ -65,7 +65,7 @@ export const IDEAS_SCHEMA = {
 
 // Ice / frozen-lake stories. Winter topics may have them; other topics must not drift onto the ice.
 const WINTER_WORDS = /\b(ice|icy|frozen|freez\w*|lake|winter|snow\w*|blizzard|whiteout|frost\w*|hypotherm\w*|cold[- ]water|sled\w*|ski\w*|avalanche)\b/i;
-const ICE_STORY = /\b(ice|icy|frozen|lake|ice[- ]fishing|creek mouth|1-10-1|eli)\b/i;
+const ICE_STORY = /\b(ice|icy|frozen|lake|ice[- ]fishing|creek mouth|1-10-1|ten minutes under)\b/i;
 export const isWinterTopic = (text) => WINTER_WORDS.test(String(text ?? ""));
 export const icyIdeas = (ideas) => (ideas ?? []).map((it, i) => (ICE_STORY.test(`${it?.title} ${it?.premise} ${it?.hook}`) ? i : -1)).filter((i) => i >= 0);
 

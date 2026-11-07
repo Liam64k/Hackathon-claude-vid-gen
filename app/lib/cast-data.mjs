@@ -134,3 +134,86 @@ export function describeLook(look) {
   if (look.build) parts.push(look.build);
   return parts.join(", ");
 }
+
+// ---- themes (mirror of src/themes.ts for the server; a test keeps them in sync) -----------------
+export const THEME_LIST = [
+  { id: "winter", label: "Winter dusk", particles: "snow", sky: ["#7D6FB0", "#F4A6B8", "#FFD6A0"], swatch: "#F1CDD4" },
+  { id: "summer", label: "Summer evening", particles: "none", sky: ["#5E8FC4", "#F6B98A", "#FFE2A8"], swatch: "#6FA44A" },
+  { id: "nightCity", label: "Night city", particles: "none", sky: ["#0F1838", "#22305E", "#4A3A5A"], swatch: "#FF9A3A" },
+  { id: "wildfire", label: "Wildfire haze", particles: "ash", sky: ["#6A3A2A", "#C2622E", "#F2A04A"], swatch: "#C2622E" },
+  { id: "storm", label: "Storm flood", particles: "rain", sky: ["#3A4250", "#5E6878", "#8A929E"], swatch: "#5E6878" },
+  { id: "fallout", label: "Fallout grey", particles: "ash", sky: ["#6E6E68", "#A4A296", "#D2CEB8"], swatch: "#A4A296" },
+  { id: "blackout", label: "Blackout night", particles: "none", sky: ["#06070F", "#0E1020", "#1A1C30"], swatch: "#0E1020" },
+  { id: "desert", label: "Desert heat", particles: "none", sky: ["#5E9AD0", "#C8DCE8", "#FFF6E0"], swatch: "#E2B878" },
+];
+export const THEME_IDS = THEME_LIST.map((t) => t.id);
+export const PARTICLES = ["snow", "rain", "ash", "none"];
+export const CAST_MODES = ["random", "manual", "claude"];
+
+// Theme for a topic when the user left it on "auto".
+const THEME_KEYWORDS = [
+  ["fallout", /nuclear|fallout|radiation|atomic/i],
+  ["nightCity", /zombie|outbreak|pandemic|riot|city/i],
+  ["wildfire", /fire|wildfire|smoke|burn/i],
+  ["storm", /flood|storm|rain|hurricane|tsunami|cyclone/i],
+  ["blackout", /blackout|power|grid|outage/i],
+  ["desert", /heat|desert|drought|sun/i],
+  ["winter", /snow|ice|winter|blizzard|frozen|cold|avalanche/i],
+];
+export const pickTheme = (text) => THEME_KEYWORDS.find(([, re]) => re.test(String(text ?? "")))?.[0] ?? "summer";
+export const themeParticles = (id) => THEME_LIST.find((t) => t.id === id)?.particles ?? "none";
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const byIdOrHex = (list, key, v) => {
+  const s = String(v ?? "");
+  return list.find((x) => x.id === s || x[key].toLowerCase() === s.toLowerCase());
+};
+const OPT_COLORS = ["trim", "pants", "boots", "gloves", "hatColor", "hatBand"];
+
+// Validate one look. Skin/hair/coat accept an id or a hex from the lists; coat fills trim/pants/etc. from
+// the coat's preset unless given as valid hex. Returns { look, errors }.
+export function normalizeLook(raw) {
+  const errors = [];
+  const r = raw && typeof raw === "object" ? raw : {};
+  const skin = byIdOrHex(SKIN, "hex", r.skin);
+  const hair = byIdOrHex(HAIR, "hex", r.hair);
+  const coat = COATS.find((c) => c.id === r.coat || c.coat.toLowerCase() === String(r.coat ?? "").toLowerCase());
+  if (!skin) errors.push("skin must be one of the listed skin tones");
+  if (!hair) errors.push("hair must be one of the listed hair colours");
+  if (!coat) errors.push("coat must be one of the listed coat colours");
+  const enumOf = (key, list) => { if (!list.includes(r[key])) errors.push(`${key} must be one of ${list.join(", ")}`); };
+  enumOf("hat", HATS); enumOf("facial", FACIAL); enumOf("coatKind", COAT_KINDS); enumOf("build", BUILDS);
+  const look = { skin: skin?.hex, hair: hair?.hex, coat: coat?.coat };
+  for (const k of OPT_COLORS) {
+    if (r[k] != null && !HEX.test(r[k])) errors.push(`${k} must be a #RRGGBB colour`);
+    look[k] = HEX.test(r[k] ?? "") ? r[k] : coat?.[k];
+  }
+  Object.assign(look, { coatKind: r.coatKind, hat: r.hat, facial: r.facial, build: r.build });
+  return { look, errors };
+}
+
+// Validate a whole cast {lead,second,theme?,particles?}. names: 1-20 letters. Returns { cast, errors }.
+export function normalizeCast(raw, safety = () => []) {
+  const errors = [];
+  const r = raw && typeof raw === "object" ? raw : {};
+  const member = (key) => {
+    const m = r[key];
+    const name = String(m?.name ?? "").trim();
+    if (!/^[A-Za-z][A-Za-z '-]{0,19}$/.test(name) || name.replace(/[^A-Za-z]/g, "").length < 1) errors.push(`${key}: name must be 1-20 letters`);
+    else if (safety(name).length) errors.push(`${key}: name is not allowed`);
+    const { look, errors: le } = normalizeLook(m?.look);
+    for (const e of le) errors.push(`${key}: ${e}`);
+    return { name, look };
+  };
+  const lead = member("lead");
+  const second = member("second");
+  const theme = r.theme == null || r.theme === "auto" ? "auto" : THEME_IDS.includes(r.theme) ? r.theme : (errors.push(`theme must be auto or one of ${THEME_IDS.join(", ")}`), "auto");
+  const particles = r.particles == null || r.particles === "auto" ? "auto" : PARTICLES.includes(r.particles) ? r.particles : (errors.push(`particles must be auto or one of ${PARTICLES.join(", ")}`), "auto");
+  return { cast: { lead, second, theme, particles }, errors };
+}
+
+// Everything the UI needs to build the Cast screen.
+export const castData = () => ({
+  skin: SKIN, hair: HAIR, coats: COATS, hats: HATS, facial: FACIAL, coatKinds: COAT_KINDS, builds: BUILDS, names: NAMES,
+  themes: THEME_LIST.map(({ id, label, swatch, sky, particles }) => ({ id, label, swatch, sky, particles })),
+});
