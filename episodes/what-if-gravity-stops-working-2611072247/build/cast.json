@@ -1,0 +1,40 @@
+{
+  "lead": {
+    "name": "Rosa",
+    "look": {
+      "skin": "#5E3A22",
+      "hair": "#2A8C8A",
+      "coat": "#E3A72F",
+      "trim": "#3A2E26",
+      "pants": "#3A3F4B",
+      "boots": "#5A3E2B",
+      "gloves": "#3A2E26",
+      "hatColor": "#1F2A44",
+      "hatBand": "#E3A72F",
+      "coatKind": "jacket",
+      "hat": "cap",
+      "facial": "none",
+      "build": "tall"
+    }
+  },
+  "second": {
+    "name": "Jade",
+    "look": {
+      "skin": "#A86F48",
+      "hair": "#EDE3C8",
+      "coat": "#1F8A84",
+      "trim": "#F6E3B4",
+      "pants": "#3A3530",
+      "boots": "#5A3E2B",
+      "gloves": "#F6E3B4",
+      "hatColor": "#E86A3A",
+      "hatBand": "#F6E3B4",
+      "coatKind": "jacket",
+      "hat": "none",
+      "facial": "none",
+      "build": "broad"
+    }
+  },
+  "theme": "summer",
+  "particles": "none"
+}

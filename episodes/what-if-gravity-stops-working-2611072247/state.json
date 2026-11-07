@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "slug": "what-if-gravity-stops-working-2611072247",
+  "title": null,
+  "topic": "what if gravity stops working in mexico",
+  "surprise": false,
+  "format": "story",
+  "length": 60,
+  "pack": "winter-lake",
+  "style": "flat",
+  "output": {
+    "preset": "tiktok",
+    "ratio": "9:16",
+    "width": 1080,
+    "height": 1920
+  },
+  "entry": "generate",
+  "mode": "live",
+  "createdAt": "2026-11-07T22:47:41.385Z",
+  "updatedAt": "2026-11-07T22:47:41.422Z",
+  "pick": null,
+  "cast": {
+    "lead": {
+      "name": "Rosa",
+      "look": {
+        "skin": "#5E3A22",
+        "hair": "#2A8C8A",
+        "coat": "#E3A72F",
+        "trim": "#3A2E26",
+        "pants": "#3A3F4B",
+        "boots": "#5A3E2B",
+        "gloves": "#3A2E26",
+        "hatColor": "#1F2A44",
+        "hatBand": "#E3A72F",
+        "coatKind": "jacket",
+        "hat": "cap",
+        "facial": "none",
+        "build": "tall"
+      }
+    },
+    "second": {
+      "name": "Jade",
+      "look": {
+        "skin": "#A86F48",
+        "hair": "#EDE3C8",
+        "coat": "#1F8A84",
+        "trim": "#F6E3B4",
+        "pants": "#3A3530",
+        "boots": "#5A3E2B",
+        "gloves": "#F6E3B4",
+        "hatColor": "#E86A3A",
+        "hatBand": "#F6E3B4",
+        "coatKind": "jacket",
+        "hat": "none",
+        "facial": "none",
+        "build": "broad"
+      }
+    },
+    "theme": "auto",
+    "particles": "auto"
+  },
+  "castMode": "random",
+  "voice": {
+    "voiceId": null,
+    "provider": "placeholder",
+    "model": null,
+    "credit": false
+  },
+  "stages": {
+    "ideas": {
+      "status": "paused",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": "2026-11-07T22:47:41.391Z",
+      "endedAt": "2026-11-07T22:47:41.422Z",
+      "error": {
+        "code": "plan_limit",
+        "message": "Your Claude plan's usage limit is reached. Studio will not start a run until it resets.",
+        "tail": null,
+        "resetsAt": null
+      },
+      "warnings": [],
+      "attempts": 1
+    },
+    "script": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    },
+    "shots": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    },
+    "voice": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    },
+    "render": {
+      "status": "idle",
+      "sessionId": null,
+      "cost": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "error": null,
+      "warnings": [],
+      "attempts": 0
+    }
+  }
+}
