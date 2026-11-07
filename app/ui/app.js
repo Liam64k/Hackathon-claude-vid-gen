@@ -1,3 +1,4 @@
+import { computeTiming } from "./timing.js";
 import { api, h, mount, md, money, ago, clock, words, captionPreview, toast, fileUrl, eventsUrl, token } from "./lib.js";
 
 const STAGES = ["ideas", "script", "shots", "voice", "render"];
@@ -146,7 +147,7 @@ const refreshDetail = () => {
   refreshTimer = setTimeout(async () => {
     if (S.route.name !== "project") return loadProjects();
     // don't yank the page out from under someone typing
-    if (document.activeElement?.closest?.("#main textarea, #main input, #insp input")) { S.dirty = true; return; }
+    if (document.activeElement?.closest?.("#main textarea, #main input, #insp input, #fe input, #fe select")) { S.dirty = true; return; }
     await loadDetail(S.route.slug);
     renderNav();
     renderMain();
@@ -328,6 +329,7 @@ async function stop() {
 // ---------------------------------------------------------------- main
 function renderMain() {
   const r = S.route;
+  if (!(r.name === "project" && S.detail && !S.detail.missing && screenOf(S.detail) === "storyboard")) document.getElementById("fe")?.remove();
   const a = document.activeElement;
   const isInput = a && /^(INPUT|TEXTAREA)$/.test(a.tagName);
   // never rebuild the screen under a text field / slider someone is using
@@ -495,7 +497,7 @@ function homeView() {
       S.ui.topic = "";
       await loadStatus();
       loadProjects();
-      go(`#/p/${d.state.slug}/ideas`);
+      go(`#/p/${d.state.slug}/${S.ui.entry === "own" ? "script" : "ideas"}`);
     } catch (e) { toast(e.message, true); }
   });
   const banner = st !== "idea" || !S.status ? null
@@ -681,75 +683,174 @@ function ideasView() {
 }
 
 // ---------------------------------------------------------------- Script
+// ---- script editor helpers: coloured words are stored as "word" (gold), "word:r", "word:g", "word:p"
+const wkey = (w) => String(w).toLowerCase().replace(/[^a-z0-9'’-]/g, "");
+const HL_ORDER = ["", "gold", "r", "g", "p"];
+const HL_NAME = { "": "no colour", gold: "gold", r: "red", g: "green", p: "purple" };
+const hlColor = (hl, key) => { for (const x of hl ?? []) { const [w, c] = String(x).split(":"); if (w === key) return c || "gold"; } return ""; };
+const hlSet = (hl, key, color) => [...(hl ?? []).filter((x) => String(x).split(":")[0] !== key), ...(color ? [color === "gold" ? key : `${key}:${color}`] : [])];
+const hlPrune = (hl, text) => { const ws = new Set(String(text).split(/\s+/).map(wkey)); return (hl ?? []).filter((x) => ws.has(String(x).split(":")[0])); };
+const speakSec = (n) => n / 2.6;
+let lineTimer = null;
+let scriptPaint = null;
+function persistLines() {
+  clearTimeout(lineTimer);
+  lineTimer = null;
+  const slug = S.route.slug;
+  saveChain = saveChain.then(async () => {
+    if (S.route.slug !== slug || !S.detail || S.detail.state?.slug !== slug) return;
+    const payload = (S.detail.lines ?? []).map((l) => ({ text: l.text, highlight: l.highlight ?? [] }));
+    try {
+      const r = await api(`/api/projects/${slug}/lines`, { method: "POST", body: { lines: payload } });
+      S.ui.lineErrors = r.errors ?? [];
+      S.ui.saveState = "Saved";
+    } catch (e) {
+      S.ui.lineErrors = e.data?.errors ?? [e.message];
+      S.ui.saveState = "Not saved";
+    }
+    scriptPaint?.();
+  });
+}
+const queueLines = () => { S.ui.saveState = "Saving…"; scriptPaint?.(); clearTimeout(lineTimer); lineTimer = setTimeout(persistLines, 700); };
+
 function scriptView() {
   const d = S.detail;
   const st = d.state.stages.script.status;
-  const lines = d.lines ?? [];
+  d.lines ??= [];
+  const L = () => S.detail.lines;
   const editable = st === "review" && !d.example;
-  const total = lines.reduce((a, l) => a + words(l.text), 0);
   const [lo, hi] = wordRange(d.state.length);
-  const secs = Math.round(total / 2.6 + lines.length * 0.3);
   const tab = S.ui.scriptTab;
-  // Edits apply to the live lines at once (so nothing typed is lost), saves run one after another with
-  // the latest text, and the editors are only rebuilt once focus has left them.
-  const saveLine = (i, patch) => {
-    const cur = S.detail.lines;
-    cur[i] = { ...cur[i], ...patch };
-    const payload = cur.map((l) => ({ ...l }));
-    const slug = d.state.slug;
-    saveChain = saveChain.then(async () => {
-      try {
-        const r = await api(`/api/projects/${slug}/lines`, { method: "POST", body: { lines: payload } });
-        S.ui.lineErrors = r.errors ?? [];
-      } catch (e) {
-        S.ui.lineErrors = e.data?.errors ?? [e.message];
-      }
-      if (S.route.slug !== slug) return;
-      if (document.activeElement?.closest?.("#main textarea, #main input")) S.dirty = true;
-      else renderMain();
-    });
+  const cards = [];
+  const mutate = (fn, focus) => {
+    fn(L());
+    persistLines();
+    renderMain();
+    if (focus !== undefined) document.querySelector(`#main [data-line="${focus}"] textarea`)?.focus();
   };
   const errFor = (i) => S.ui.lineErrors.filter((e) => e.startsWith(`line ${i}:`));
-  const body =
-    tab === "lines"
-      ? h("div.lines", {}, lines.map((l, i) =>
-          h(`div.line${errFor(i).length ? ".err" : ""}`, {},
-            h("div.n", {}, String(i + 1)),
-            h("div", {},
-              editable ? h("textarea", { "aria-label": `Line ${i + 1}`, rows: 2, onchange: (e) => saveLine(i, { text: e.target.value }) }, l.text) : h("div", { style: { fontSize: "15px", padding: "4px 6px" } }, captionPreview(l.text, l.highlight)),
-              h("div.hl", {},
-                editable ? [h("span.meta", {}, "Coloured words"), h("input", { value: (l.highlight ?? []).join(", "), "aria-label": `Coloured words for line ${i + 1}`, title: "Comma-separated words from the line. Add :r for red, :g for green.", onchange: (e) => saveLine(i, { highlight: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }) })] : null,
-                h("span.meta", {}, `${words(l.text)} words · ~${(words(l.text) / 2.6).toFixed(1)} s`)),
-              editable ? h("div.small", { style: { marginTop: "6px" } }, captionPreview(l.text, l.highlight)) : null,
-              errFor(i).map((e) => h("div.small", { style: { color: "var(--warn)" } }, e.replace(/^line \d+: /, "")))))))
-      : tab === "facts"
-        ? factsView(d)
-        : h("div.md", { html: md(tab === "notes" ? d.scriptMd ?? "_No script notes yet._" : d.shotlistMd ?? "_No beat board yet._") });
+  const stats = h("div.sbar", { role: "status" });
+  const approveBtn = st === "review" && !d.example ? h("button.btn.primary.lg.block", { onclick: () => { if (lineTimer) persistLines(); approve("script", {}, "storyboard"); } }, "Approve script → storyboard") : null;
+  const paintHead = () => {
+    const ls = L();
+    const total = ls.reduce((a, l) => a + words(l.text), 0);
+    const secs = Math.round(speakSec(total) + ls.length * 0.3);
+    mount(stats,
+      h(`span.stat${total && (total < lo || total > hi) ? ".bad" : ""}`, {}, h("b", {}, String(total)), ` words · target ${lo}-${hi}`),
+      h("span.stat", {}, h("b", {}, String(ls.length)), ls.length === 1 ? " line" : " lines"),
+      h("span.stat", {}, "≈ ", h("b", {}, `${secs} s`)),
+      h(`span.savestate${S.ui.saveState === "Not saved" ? ".bad" : ""}`, {}, S.ui.saveState ?? ""));
+    if (approveBtn) approveBtn.disabled = !ls.some((l) => l.text?.trim());
+  };
+  const paintCard = (c, i) => {
+    const l = L()[i];
+    if (!l) return;
+    const w = words(l.text);
+    c.meta.textContent = `${w} word${w === 1 ? "" : "s"} · ~${speakSec(w).toFixed(1)} s${w > 34 ? " · over 34 words" : ""}`;
+    c.root.classList.toggle("err", errFor(i).length > 0);
+    mount(c.err, errFor(i).map((e) => h("div.lerr", {}, e.replace(/^line \d+: /, ""))));
+    mount(c.chips, String(l.text).split(/\s+/).filter(Boolean).map((tok) => {
+      const key = wkey(tok);
+      const col = hlColor(l.highlight, key);
+      return h(`button.wchip${col ? ".c-" + col : ""}`, {
+        type: "button", disabled: !key, "aria-label": `${tok}: ${HL_NAME[col]}. Click to change colour`, title: "Click to cycle colour: gold, red, green, purple, none",
+        onclick: () => {
+          const next = HL_ORDER[(HL_ORDER.indexOf(col) + 1) % HL_ORDER.length];
+          if (next && !col && (l.highlight ?? []).length >= 4) return toast("Up to four coloured words per line.");
+          l.highlight = hlSet(l.highlight, key, next);
+          paintCard(c, i);
+          queueLines();
+        },
+      }, tok);
+    }));
+  };
+  const card = (l, i) => {
+    const ta = h("textarea", {
+      "aria-label": `Line ${i + 1}`, rows: 2, placeholder: "Write the narration for this beat…",
+      oninput: (e) => {
+        const cur = L()[i];
+        cur.text = e.target.value;
+        cur.highlight = hlPrune(cur.highlight, cur.text);
+        e.target.style.height = "auto";
+        e.target.style.height = `${e.target.scrollHeight + 2}px`;
+        paintCard(c, i);
+        paintHead();
+        queueLines();
+      },
+      onchange: () => { if (lineTimer) persistLines(); },
+    }, l.text);
+    const c = { root: h("div.line.edit", { "data-line": String(i) }), ta, meta: h("span.meta"), chips: h("div.chips-w", { role: "group", "aria-label": `Coloured words for line ${i + 1}` }), err: h("div") };
+    const split = () => {
+      const pos = ta.selectionStart;
+      const txt = L()[i].text;
+      const a = txt.slice(0, pos).trim(), b = txt.slice(pos).trim();
+      if (!a || !b) return toast("Put the cursor inside the line where it should split.");
+      const hl = L()[i].highlight ?? [];
+      mutate((ls) => ls.splice(i, 1, { text: a, highlight: hlPrune(hl, a) }, { text: b, highlight: hlPrune(hl, b) }), i + 1);
+    };
+    const swap = (j) => mutate((ls) => { [ls[i], ls[j]] = [ls[j], ls[i]]; }, j);
+    mount(c.root,
+      h("div.n", {}, String(i + 1)),
+      h("div.lbody", {},
+        ta,
+        h("div.chiprow", {}, h("span.meta", {}, "Click a word to colour it"), c.meta),
+        c.chips,
+        c.err,
+        h("div.lact", {},
+          h("button.btn.sm.tall", { type: "button", disabled: i === 0, "aria-label": `Move line ${i + 1} up`, onclick: () => swap(i - 1) }, "↑ Up"),
+          h("button.btn.sm.tall", { type: "button", disabled: i === L().length - 1, "aria-label": `Move line ${i + 1} down`, onclick: () => swap(i + 1) }, "↓ Down"),
+          h("button.btn.sm.tall", { type: "button", onclick: split, title: "Splits the line at the cursor" }, "Split at cursor"),
+          h("button.btn.sm.tall.danger", { type: "button", "aria-label": `Delete line ${i + 1}`, onclick: () => mutate((ls) => ls.splice(i, 1), Math.max(0, i - 1)) }, "Delete"))));
+    cards[i] = c;
+    return c.root;
+  };
+  const fixedLine = (l, i) => h(`div.line${errFor(i).length ? ".err" : ""}`, {},
+    h("div.n", {}, String(i + 1)),
+    h("div", {}, h("div", { style: { fontSize: "15px", padding: "4px 6px" } }, captionPreview(l.text, l.highlight)),
+      h("div.hl", {}, h("span.meta", {}, `${words(l.text)} words · ~${speakSec(words(l.text)).toFixed(1)} s`)),
+      errFor(i).map((e) => h("div.lerr", {}, e.replace(/^line \d+: /, "")))));
+  const addLine = () => mutate((ls) => ls.push({ text: "", highlight: [] }), L().length);
+  const linesBody = () => {
+    const ls = L();
+    if (!editable) return h("div.lines", {}, ls.map(fixedLine));
+    if (!ls.length) return h("div.empty.first", {}, h("p", {}, h("b", {}, "Write your first line — the hook.")), h("p", {}, "Keep it under 34 words, spell numbers as words."), h("button.btn.primary", { onclick: addLine }, "Write line one"));
+    return [stats, h("div.lines", {}, ls.map(card)), h("div.row", { style: { marginTop: "10px" } }, h("button.btn", { onclick: addLine }, "+ Add line"))];
+  };
+  const body = tab === "lines" ? linesBody()
+    : tab === "facts" ? factsView(d)
+    : h("div.md", { html: md(tab === "notes" ? d.scriptMd ?? "_No script notes yet._" : d.shotlistMd ?? "_No beat board yet._") });
   const verifying = S.status?.job?.stage === "verify" && S.status.job.slug === d.state.slug;
   const general = S.ui.lineErrors.filter((e) => !/^line \d+:/.test(e));
   const warnings = d.state.stages.script.warnings ?? [];
+  scriptPaint = editable && tab === "lines" ? () => {
+    paintHead();
+    cards.forEach((c, i) => c && paintCard(c, i));
+    const g = document.getElementById("gen-errors");
+    if (g) { const gen = S.ui.lineErrors.filter((e) => !/^line \d+:/.test(e)); mount(g, [...gen, ...warnings].map((e) => h("li", {}, e))); g.parentElement.hidden = !(gen.length || warnings.length); }
+  } : null;
+  const total = L().reduce((a, l) => a + words(l.text), 0);
   insp([
     projFacts(d),
-    lines.length ? h("section.sect", {}, h("header", {}, h("h3", {}, "Script")), h("div.stats", {},
-      h(`div.stat${total < lo || total > hi ? ".bad" : ""}`, {}, h("b", {}, String(total)), h("span", {}, `words (target ${lo}-${hi})`)),
-      h("div.stat", {}, h("b", {}, `${secs} s`), h("span", {}, "estimated length")),
-      h("div.stat", {}, h("b", {}, String(lines.length)), h("span", {}, "lines")),
-      d.state.stages.script.cost ? h("div.stat", {}, h("b", {}, money(d.state.stages.script.cost)), h("span", {}, "Claude usage")) : null)) : null,
-    general.length || warnings.length ? h("div.errors", {}, h("b", {}, "Check before approving"), h("ul", {}, [...general, ...warnings].map((e) => h("li", {}, e)))) : null,
+    !editable && L().length ? h("section.sect", {}, h("header", {}, h("h3", {}, "Script")), h("div.stats", {},
+      h("div.stat", {}, h("b", {}, String(total)), h("span", {}, `words (target ${lo}-${hi})`)),
+      h("div.stat", {}, h("b", {}, String(L().length)), h("span", {}, "lines")))) : null,
+    h("div.errors", { hidden: !(general.length || warnings.length) }, h("b", {}, "Check before approving"), h("ul#gen-errors", {}, [...general, ...warnings].map((e) => h("li", {}, e)))),
   ], [
-    st === "review" && !d.example ? h("button.btn.primary.lg.block", { onclick: () => approve("script", {}, "storyboard") }, "Approve script → storyboard") : null,
-    st === "review" && !d.example ? h("button.btn.block", { onclick: () => runStage("script") }, "Rewrite") : null,
+    approveBtn,
+    st === "review" && !d.example ? h("button.btn.block", { onclick: () => runStage("script") }, "Rewrite with Claude") : null,
     st === "approved" && !d.example ? h("a.btn.primary.lg.block", { href: `#/p/${d.state.slug}/storyboard` }, "Go to storyboard →") : null,
     st === "idle" && !d.example && d.state.stages.ideas.status === "approved" ? h("button.btn.primary.lg.block", { onclick: () => runStage("script") }, "Write the script") : null,
   ]);
-  return [
-    stageHead(2, d.state.title ?? "Script", "Read it out loud. Edit any line; the captions colour the words you list. The beat board shows how each line becomes shots."),
+  const out = [
+    stageHead(2, d.state.title ?? "Script", "Read it out loud. Edit any line; click a word to colour it in the captions. The beat board shows how each line becomes shots."),
     st === "running" ? working("script") : null,
     st === "error" || st === "paused" ? errorBox("script") : null,
     verifying ? h("div.working", { role: "status" }, h("span.spinner"), h("div", { style: { flex: 1 } }, h("b", {}, "Claude is checking the facts on the web…"), h("span.muted.small", { id: "now-line" }, S.now ?? "Starting…")), h("button.btn.sm.danger", { onclick: stop }, "Stop")) : null,
-    lines.length || d.scriptMd ? h("div.tabs", { role: "tablist" }, [["lines", "Narration"], ["notes", "Script notes"], ["board", "Beat board"], ["facts", d.facts ? `Fact check (${d.facts.facts?.length ?? 0})` : "Fact check"]].map(([k, l]) => h("button", { role: "tab", "aria-selected": String(tab === k), onclick: () => { S.ui.scriptTab = k; renderMain(); } }, l))) : null,
-    lines.length || d.scriptMd ? body : st !== "running" ? h("div.empty", {}, "No script yet.") : null,
+    L().length || d.scriptMd ? h("div.tabs", { role: "tablist" }, [["lines", "Narration"], ["notes", "Script notes"], ["board", "Beat board"], ["facts", d.facts ? `Fact check (${d.facts.facts?.length ?? 0})` : "Fact check"]].map(([k, l]) => h("button", { role: "tab", "aria-selected": String(tab === k), onclick: () => { S.ui.scriptTab = k; renderMain(); } }, l))) : null,
+    L().length || d.scriptMd ? body : st !== "running" ? h("div.empty", {}, "No script yet.") : null,
   ];
+  queueMicrotask(() => { if (scriptPaint) { paintHead(); cards.forEach((c, i) => { if (c) { paintCard(c, i); c.ta.style.height = `${c.ta.scrollHeight + 2}px`; } }); } });
+  return out;
 }
 
 function factsView(d) {
@@ -770,33 +871,242 @@ function factsView(d) {
 }
 
 // ---------------------------------------------------------------- Storyboard
+// Working copy of the user's edits (edits.shots / edits.lines), shared by the Frames and Timing tabs.
+const ZOOMS = [["Wide", 0.8], ["Medium", 1.2], ["Close", 1.8]];
+const nearZoom = (z) => ZOOMS.reduce((b, c) => (Math.abs(c[1] - z) < Math.abs(b[1] - z) ? c : b))[1];
+const W = { slug: null, shots: [], lines: {}, dirty: false, sel: null, errs: [], saving: false };
+const rawOf = () => S.detail?.rawShots ?? [];
+const effLine = (e) => e.line ?? rawOf()[e.base]?.line ?? 0;
+const byLine = (arr) => arr.map((e, i) => ({ e, i })).sort((a, b) => effLine(a.e) - effLine(b.e) || a.i - b.i).map((x) => x.e);
+const eff = (e) => { const r = rawOf()[e.base] ?? {}; return { base: e.base, id: r.id, line: e.line ?? r.line ?? 0, scene: e.scene ?? r.scene, zoom: e.zoom ?? r.zoom ?? 1, text: e.text !== undefined ? e.text : r.text ?? "", sec: e.sec }; };
+const isEdited = (e) => Object.keys(e).length > 1 || W.shots.filter((x) => x.base === e.base).length > 1;
+function syncWork() {
+  const d = S.detail;
+  if (W.slug === d.state.slug && W.dirty) return;
+  W.slug = d.state.slug;
+  W.shots = byLine((d.edits?.shots ?? rawOf().map((r) => ({ base: r.base }))).map((x) => ({ ...x })));
+  W.lines = { ...(d.edits?.lines ?? {}) };
+  W.dirty = false;
+  W.errs = [];
+  if (W.sel !== null && W.sel >= W.shots.length) W.sel = null;
+}
+const editsPayload = () => {
+  const raw = rawOf();
+  const identity = W.shots.length === raw.length && W.shots.every((e, i) => e.base === i && Object.keys(e).length === 1);
+  const o = {};
+  if (!identity) o.shots = W.shots;
+  if (Object.keys(W.lines).length) o.lines = W.lines;
+  return Object.keys(o).length ? o : null;
+};
+const touch = () => { W.dirty = true; W.errs = []; };
+const stillSrc = (p) => (p ? fileUrl(p) + (S.stillsV ? `&v=${S.stillsV}` : "") : "");
+// Which saved still shows this working entry (a changed entry shows the last rendered frame of the same base).
+const stillOf = (d, e, k) => {
+  if (!W.dirty) return d.stills?.[k];
+  const saved = byLine((d.edits?.shots ?? rawOf().map((r) => ({ base: r.base }))));
+  const j = saved.findIndex((x) => x.base === e.base);
+  return d.stills?.[j >= 0 ? j : 0];
+};
+const fmtT = (sec) => { const t = Math.max(0, Math.round(sec * 10)); const r = (t % 600) / 10; return `${Math.floor(t / 600)}:${r < 10 ? "0" : ""}${r.toFixed(1)}`; };
+const rendering = () => S.status?.job?.stage === "edits" && S.status.job.slug === S.route.slug;
+const canEdit = (d) => ["review", "approved"].includes(d.state.stages.shots.status) && !d.example && rawOf().length > 0 && !S.status?.job;
+
+const saveEdits = once(async () => {
+  const slug = S.route.slug;
+  try {
+    await api(`/api/projects/${slug}/shots/edits`, { method: "POST", body: { edits: editsPayload() } });
+    W.dirty = false;
+    W.sel = null;
+    await loadStatus();
+    await loadDetail(slug);
+  } catch (e) {
+    W.errs = e.data?.errors ?? [e.message];
+  }
+  renderMain();
+});
+const discardEdits = () => { W.dirty = false; W.sel = null; renderMain(); };
+
+const subtabs = (first) => h("div.tabs", { role: "tablist" }, [["main", first], ["timing", "Timing"]].map(([k, l]) => h("button", { role: "tab", "aria-selected": String((S.ui.sbTab ?? "main") === k), onclick: () => { S.ui.sbTab = k; renderMain(); } }, l)));
+
+const dirtyBar = (d) => {
+  if (!W.dirty) return null;
+  const n = W.shots.filter(isEdited).length;
+  return h("div.dirtybar", { role: "region", "aria-label": "Unsaved changes" },
+    h("div.grow", {}, h("b", {}, "Unsaved changes"), h("span.small.muted", {}, ` ${[n ? `${n} edited frame${n === 1 ? "" : "s"}` : "", Object.keys(W.lines).length ? "custom line lengths" : "", W.shots.some((e) => e.sec !== undefined) ? "custom shot lengths" : ""].filter(Boolean).join(", ") || "Changes"}. `),
+      d.state.stages.shots.status === "approved" ? h("span.small.muted", {}, "Saving re-opens the storyboard and resets the voice step.") : null,
+      W.errs.length ? h("ul.small.berr", {}, W.errs.slice(0, 4).map((e) => h("li", {}, e))) : null),
+    h("button.btn", { onclick: discardEdits }, "Discard"),
+    h("button.btn.primary", { onclick: saveEdits }, "Update frames"));
+};
+
+function renderingBar() {
+  if (!rendering()) return null;
+  const p = S.progress[`${S.route.slug}:shots`];
+  return h("div.working", { role: "status" }, h("span.spinner", { "aria-hidden": "true" }),
+    h("div", { style: { flex: 1 } }, h("b", {}, "Re-drawing your frames…"), h("span.muted.small", {}, S.now ?? "Starting…"),
+      h("div", { style: { marginTop: "10px" } }, h("div.progress", { "aria-label": "progress" }, h("div", { id: "prog-shots", style: { width: `${Math.round((p?.value ?? 0) * 100)}%` } })), h("div.small.faint", { id: "progl-shots", style: { marginTop: "4px" } }, p?.label ?? ""))));
+}
+
+const lineLabel = (lines, i) => `${i + 1} · ${(lines[i]?.text ?? "").split(/\s+/).slice(0, 7).join(" ")}`;
+
+function paintFE() {
+  const prevId = document.activeElement?.closest?.("#fe") ? document.activeElement.id : null;
+  document.getElementById("fe")?.remove();
+  const d = S.detail;
+  if (W.sel === null || !d || !canEdit(d)) return;
+  const k = W.sel;
+  const e = W.shots[k];
+  if (!e) return;
+  const x = eff(e);
+  const raw = rawOf()[e.base] ?? {};
+  const lines = d.lines ?? [];
+  const sceneList = [...new Set([...(OPT.scenes ?? []), ...rawOf().map((r) => r.scene), x.scene].filter(Boolean))].sort();
+  const close = () => { W.sel = null; paintFE(); };
+  const resort = (mutator) => { mutator(); const keep = W.shots[k]; W.shots = byLine(W.shots); W.sel = Math.max(0, W.shots.indexOf(keep)); touch(); renderMain(); };
+  const patch = (obj) => {
+    Object.assign(e, obj);
+    for (const key of ["scene", "zoom", "line"]) if (e[key] === raw[key]) delete e[key];
+    if (e.text !== undefined && e.text === (raw.text ?? "")) delete e.text;
+    if (e.sec === undefined) delete e.sec;
+    touch();
+    W.shots = byLine(W.shots);
+    W.sel = W.shots.indexOf(e);
+    renderMain();
+  };
+  const move = (dir) => {
+    const j = k + dir;
+    const o = W.shots[j];
+    if (!o) return;
+    if (effLine(o) !== effLine(e)) { e.line = effLine(o); if (e.line === raw.line) delete e.line; W.shots = byLine(W.shots); }
+    else { W.shots[k] = o; W.shots[j] = e; }
+    W.sel = W.shots.indexOf(e);
+    touch();
+    renderMain();
+  };
+  const src = stillSrc(stillOf(d, e, k));
+  const changed = W.dirty && isEdited(e);
+  const field = (label, id, control) => h("div.ff", {}, h("label", { for: id }, label), control);
+  const card = h("div.fe-card", { role: "dialog", "aria-modal": "true", "aria-label": `Edit shot ${k + 1}` },
+    h("header.fe-head", {}, h("b", {}, `Shot ${k + 1} of ${W.shots.length}`), h("span.muted.small", {}, `${x.id ? x.id + " · " : ""}line ${x.line + 1}`), h("button.btn.sm.tall", { onclick: close, "aria-label": "Close editor" }, "Close")),
+    h("div.fe-body", {},
+      h("div.fe-img", { style: { "--ar": arOf(pOut(d.state)) } }, src ? h("img", { src, alt: `Shot ${k + 1}` }) : h("div.empty", {}, "No frame yet"), changed ? h("p.small.muted.fe-note", {}, "Showing the last drawn frame. Press Update frames to see your changes.") : null),
+      h("div.fe-form", {},
+        field("Scene", "fe-scene", h("select.input", { id: "fe-scene", onchange: (ev) => patch({ scene: ev.target.value }) }, sceneList.map((s) => h("option", { value: s, selected: s === x.scene }, s)))),
+        h("div.ff", {}, h("span.lab", { id: "fe-cam" }, "Camera"), h("div.seg", { role: "group", "aria-labelledby": "fe-cam" }, ZOOMS.map(([l, z]) => h("button", { type: "button", "aria-pressed": String(nearZoom(x.zoom) === z), onclick: () => patch({ zoom: z }) }, l)))),
+        field("On-screen text (max 60)", "fe-text", h("input.input", { id: "fe-text", value: x.text ?? "", maxlength: 60, placeholder: "No text", onchange: (ev) => patch({ text: ev.target.value.trim() }) })),
+        field("Narration line", "fe-line", h("select.input", { id: "fe-line", onchange: (ev) => patch({ line: Number(ev.target.value) }) }, lines.map((_, i) => h("option", { value: i, selected: i === x.line }, lineLabel(lines, i))))),
+        field("Duration (seconds, blank = auto)", "fe-sec", h("input.input", { id: "fe-sec", type: "number", step: "0.1", min: "0.5", max: "30", inputmode: "decimal", value: e.sec ?? "", placeholder: "Auto", onchange: (ev) => { const v = parseFloat(ev.target.value); patch({ sec: Number.isFinite(v) ? Math.min(30, Math.max(0.5, v)) : undefined }); } })),
+        h("div.fe-acts", {},
+          h("button.btn", { onclick: () => { W.shots.splice(k + 1, 0, { ...e }); W.sel = k + 1; touch(); renderMain(); } }, "Duplicate"),
+          h("button.btn.danger", { disabled: W.shots.length <= 1, onclick: () => { W.shots.splice(k, 1); W.sel = Math.min(k, W.shots.length - 1); touch(); renderMain(); } }, "Delete"),
+          h("button.btn", { disabled: k === 0, onclick: () => move(-1) }, "◀ Move"),
+          h("button.btn", { disabled: k === W.shots.length - 1, onclick: () => move(1) }, "Move ▶")))));
+  const back = h("div.fe", { id: "fe", onclick: (ev) => { if (ev.target === back) close(); }, onkeydown: (ev) => { if (ev.key === "Escape") close(); } }, card);
+  document.body.append(back);
+  if (prevId) document.getElementById(prevId)?.focus();
+  else if (!S.ui.feOpened) card.querySelector("button")?.focus();
+  S.ui.feOpened = true;
+}
+
 function storyboardView() {
   const d = S.detail;
   const st = d.state.stages.shots.status;
-  const shots = d.shots ?? [];
   const lines = d.lines ?? [];
   const o = pOut(d.state);
-  const open = (src) => { const lb = h("div.lightbox", { role: "dialog", "aria-label": "Still", onclick: () => lb.remove(), tabindex: 0, onkeydown: (e) => e.key === "Escape" && lb.remove() }, h("img", { src, alt: "" })); document.body.append(lb); lb.focus(); };
+  syncWork();
+  const edit = canEdit(d);
+  const lightbox = (src) => { const lb = h("div.lightbox", { role: "dialog", "aria-label": "Still", onclick: () => lb.remove(), tabindex: 0, onkeydown: (e) => e.key === "Escape" && lb.remove() }, h("img", { src, alt: "" })); document.body.append(lb); lb.focus(); };
   insp([
     projFacts(d),
     d.stills?.length ? h("section.sect", {}, h("header", {}, h("h3", {}, "Storyboard")), h("p.helptext", {}, `${d.stills.length} shots · ${lines.length} narration lines. Check the story reads without sound.`), d.storyboard ? h("a.btn.sm", { href: fileUrl(d.storyboard), target: "_blank", rel: "noopener" }, "Open contact sheet") : null) : null,
   ], [
-    st === "review" && !d.example ? h("button.btn.primary.lg.block", { onclick: () => approve("shots", { next: false }, "voice") }, "Approve storyboard → voice") : null,
+    st === "review" && !d.example ? h("button.btn.primary.lg.block", { disabled: W.dirty || rendering(), onclick: () => approve("shots", { next: false }, "voice") }, "Approve storyboard → voice") : null,
     st === "review" && !d.example ? h("button.btn.block", { onclick: () => runStage("shots") }, "Rebuild shots") : null,
     st === "approved" && !d.example ? h("a.btn.primary.lg.block", { href: `#/p/${d.state.slug}/voice` }, "Go to voice →") : null,
     st === "idle" && !d.example && d.state.stages.script.status === "approved" ? h("button.btn.primary.lg.block", { onclick: () => runStage("shots") }, "Build the storyboard") : null,
   ]);
+  const tab = S.ui.sbTab ?? "main";
+  const hasRaw = rawOf().length > 0 && d.stills?.length;
+  const grid = d.stills?.length
+    ? h("div.stills", { class: `${o.width > o.height ? "wide" : ""}${rendering() ? " busy" : ""}`, style: { "--ar": arOf(o) } },
+        (hasRaw ? W.shots : d.stills).map((item, k) => {
+          const e = hasRaw ? item : null;
+          const x = e ? eff(e) : null;
+          const s = e ? null : (d.shots ?? [])[k];
+          const p = e ? stillOf(d, e, k) : item;
+          const line = lines[x ? x.line : s?.line];
+          return h("button.still", { onclick: () => { if (edit && hasRaw) { S.ui.feOpened = false; W.sel = k; paintFE(); } else lightbox(stillSrc(p)); }, "aria-label": `Shot ${k + 1}${e && isEdited(e) ? ", edited" : ""}` },
+            h("img", { src: stillSrc(p), alt: "", decoding: "async" }),
+            e && isEdited(e) ? h("em.etag", {}, "edited") : null,
+            h("span", {}, h("b", {}, x?.id ?? s?.id ?? String(k + 1)), (x?.scene ?? s?.scene) ? ` · ${x?.scene ?? s.scene}` : "", line ? h("div", {}, line.text.slice(0, 54) + (line.text.length > 54 ? "…" : "")) : null));
+        }))
+    : st !== "running" && st !== "error" ? h("div.empty", {}, "The storyboard appears here after the script is approved.") : null;
+  queueMicrotask(paintFE);
   return [
-    stageHead(3, "Storyboard", "One frame from every shot, rendered from the real scene code."),
+    stageHead(3, "Storyboard", edit ? "One frame from every shot. Click a frame to change its scene, camera, text or line." : "One frame from every shot, rendered from the real scene code."),
     st === "running" ? working("shots", true) : null,
     st === "error" || st === "paused" ? errorBox("shots") : null,
-    d.stills?.length
-      ? h("div.stills", { class: o.width > o.height ? "wide" : "", style: { "--ar": arOf(o) } }, d.stills.map((p, i) => {
-          const s = shots[i];
-          return h("button.still", { onclick: () => open(fileUrl(p)), "aria-label": `Shot ${s?.id ?? i + 1}` }, h("img", { src: fileUrl(p), alt: "", decoding: "async" }), h("span", {}, h("b", {}, s?.id ?? String(i + 1)), s ? ` · ${s.scene}` : "", s && lines[s.line] ? h("div", {}, lines[s.line].text.slice(0, 54) + (lines[s.line].text.length > 54 ? "…" : "")) : null));
-        }))
-      : st !== "running" && st !== "error" ? h("div.empty", {}, "The storyboard appears here after the script is approved.") : null,
+    renderingBar(),
+    d.stills?.length ? subtabs("Frames") : null,
+    tab === "timing" && d.stills?.length ? timingView(d, edit) : grid,
+    dirtyBar(d),
   ];
+}
+
+// ---------------------------------------------------------------- Timing
+function timingView(d, edit) {
+  syncWork();
+  const lines = d.lines ?? [];
+  const raw = rawOf();
+  if (!raw.length || !lines.length) return h("div.empty", {}, "Timing appears once the storyboard is built.");
+  const T = computeTiming({ lines, audio: d.audio, shots: raw, edits: { shots: W.shots, lines: W.lines } });
+  const F = T.fps;
+  const open = (S.ui.tOpen ??= new Set());
+  const secOf = (n) => n / F;
+  const short = (dur, v) => v != null && dur / F < v - 0.05;
+  const num = (set) => (ev) => { const v = parseFloat(ev.target.value); set(Number.isFinite(v) ? v : undefined); touch(); renderMain(); };
+  const hasAny = Object.keys(W.lines).length > 0 || W.shots.some((e) => e.sec !== undefined);
+  const cut = T.lines.filter((l) => short(l.end - l.start, l.voiceSec)).length;
+  const bar = h("div.tbar", { role: "img", "aria-label": `Total ${fmtT(T.totalSec)}` }, T.lines.map((l) => {
+    const dur = l.end - l.start;
+    return h(`div.tseg${short(dur, l.voiceSec) ? ".warn" : ""}${W.lines[l.i] ? ".set" : ""}`, { style: { flex: `${dur} 1 0` }, title: `Line ${l.i + 1}: ${fmtT(secOf(l.start))} – ${fmtT(secOf(l.end))} (${secOf(dur).toFixed(1)} s)` }, secOf(dur) >= 2 ? String(l.i + 1) : "");
+  }));
+  const rows = T.lines.map((l) => {
+    const dur = l.end - l.start;
+    const sh = T.shots.filter((s) => s.line === l.i);
+    const isOpen = open.has(l.i);
+    const text = (lines[l.i]?.text ?? "").split(/\s+/).slice(0, 6).join(" ");
+    return h("div.tline", {},
+      h("div.trow.head", {},
+        h("button.tog", { "aria-expanded": String(isOpen), "aria-label": `${isOpen ? "Hide" : "Show"} shots of line ${l.i + 1}`, onclick: () => { isOpen ? open.delete(l.i) : open.add(l.i); renderMain(); } }, isOpen ? "▾" : "▸"),
+        h("span.tn", {}, String(l.i + 1)),
+        h("span.tt", {}, text + "…"),
+        h("span.tc.mono", { "data-l": "Start" }, fmtT(secOf(l.start))),
+        h("span.tc.mono", { "data-l": "End" }, fmtT(secOf(l.end))),
+        h("span.tc", { "data-l": "Length (s)" }, h("input.input.tin", { type: "number", step: "0.1", min: "0.5", max: "60", inputmode: "decimal", disabled: !edit, value: W.lines[l.i]?.sec ?? "", placeholder: secOf(dur).toFixed(1), "aria-label": `Length of line ${l.i + 1} in seconds`, onchange: num((v) => { if (v === undefined) delete W.lines[l.i]; else W.lines[l.i] = { sec: Math.min(60, Math.max(0.5, v)) }; }) })),
+        h("span.tc.mono", { "data-l": "Voice" }, l.voiceSec != null ? `${l.voiceSec.toFixed(1)} s` : "—")),
+      short(dur, l.voiceSec) ? h("div.twarn", { role: "alert" }, h("span", { "aria-hidden": "true" }, "⚠"), ` Voice is ${l.voiceSec.toFixed(1)} s — it will be cut off`) : null,
+      isOpen ? sh.map((s) => {
+        const k = s.idx;
+        const e = W.shots[k];
+        const x = e ? eff(e) : {};
+        return h("div.trow.shot", {},
+          h("span"), h("span.tn", {}, `${l.i + 1}.${sh.indexOf(s) + 1}`),
+          h("span.tt", {}, `${x.id ?? `shot ${k + 1}`} · ${x.scene ?? ""}`),
+          h("span.tc.mono", { "data-l": "Start" }, fmtT(secOf(s.start))),
+          h("span.tc.mono", { "data-l": "End" }, fmtT(secOf(s.end))),
+          h("span.tc", { "data-l": "Length (s)" }, h("input.input.tin", { type: "number", step: "0.1", min: "0.5", max: "30", inputmode: "decimal", disabled: !edit || !e, value: e?.sec ?? "", placeholder: secOf(s.end - s.start).toFixed(1), "aria-label": `Length of shot ${l.i + 1}.${sh.indexOf(s) + 1} in seconds`, onchange: num((v) => { if (e) { if (v === undefined) delete e.sec; else e.sec = Math.min(30, Math.max(0.5, v)); } }) })),
+          h("span"));
+      }) : null);
+  });
+  return h("div.timing", {},
+    h("div.row.between", { style: { marginBottom: "10px" } },
+      h("p.small.muted", { style: { margin: 0, flex: 1, minWidth: "220px" } }, "Each line lasts as long as its voice plus a short pause. Type a length to set your own; leave it blank for automatic. Times are m:ss.s."),
+      h("button.btn", { disabled: !edit || !hasAny, onclick: () => { W.lines = {}; W.shots.forEach((e) => delete e.sec); touch(); renderMain(); } }, "Reset timing")),
+    h("div.ttot", {}, h("b.mono", {}, fmtT(T.totalSec)), h("span.muted.small", {}, ` total · ${lines.length} lines · ${T.shots.length} shots`), cut ? h("span.tag.warn", {}, `${cut} line${cut === 1 ? "" : "s"} shorter than the voice`) : null),
+    bar,
+    h("div.thead", {}, h("span"), h("span", {}, "#"), h("span", {}, "Line"), h("span", {}, "Start"), h("span", {}, "End"), h("span", {}, "Length (s)"), h("span", {}, "Voice")),
+    h("div.tlist", {}, rows));
 }
 
 // ---------------------------------------------------------------- Voice
@@ -810,6 +1120,7 @@ function voiceView() {
   if (!voicesCache && !voicesLoading && !replay) { voicesLoading = true; api("/api/voices").then((v) => { voicesCache = v; if (!S.ui.voiceId) S.ui.voiceId = v.voices?.[0]?.id ?? null; renderMain(); }).catch((e) => toast(`Could not load voices: ${e.message}`, true)).finally(() => (voicesLoading = false)); }
   const keySource = S.status?.eleven?.keySource;
   const lines = d.lines ?? [];
+  syncWork();
   const audio = d.audio?.voice ?? {};
   const total = Object.values(audio).reduce((a, b) => a + b, 0);
   const v = d.state.voice ?? {};
@@ -846,6 +1157,8 @@ function voiceView() {
     st === "error" || st === "paused" ? errorBox("voice") : null,
     (st === "review" || st === "approved") && v.credit ? h("div.banner.info", {}, h("div.grow", {}, h("b", {}, "Credit reminder. "), "ElevenLabs' free plan is non-commercial and published videos must credit “elevenlabs.io” in the title. Studio adds it to your titles.")) : null,
     placeholder && (st === "review" || st === "approved") ? h("div.banner.warn", {}, h("div.grow", {}, h("b", {}, "Placeholder voice. "), "Made with your computer's speech engine for testing. Add an ElevenLabs key and regenerate before publishing.")) : null,
+    rawOf().length ? subtabs("Voice") : null,
+    rawOf().length && S.ui.sbTab === "timing" ? [timingView(d, canEdit(d)), dirtyBar(d)] :
     d.clips?.length
       ? [h("div.row.between", { style: { margin: "6px 0 10px" } }, h("span.muted.small", {}, `${d.clips.length} clips · ${total.toFixed(1)} s total${v.model ? ` · ${placeholder ? "placeholder" : v.model}` : ""}`)),
         h("div.clips", {}, d.clips.map((p, i) => h("div.clip", {}, h("span.n", {}, String(i + 1)), h("span", {}, lines[i]?.text ?? ""), h("audio", { controls: true, preload: "none", src: fileUrl(p), "aria-label": `Line ${i + 1}` }), h("span.s", {}, audio[i] ? `${audio[i].toFixed(1)} s` : ""))))]
@@ -1052,7 +1365,7 @@ function inspirationView() {
       S.partial[d.state.slug] = [];
       await loadStatus();
       loadProjects();
-      go(`#/p/${d.state.slug}/ideas`);
+      go(`#/p/${d.state.slug}/${S.ui.entry === "own" ? "script" : "ideas"}`);
     } catch (e) { toast(e.message, true); }
   });
   const { w, h: hh } = curDims();
@@ -1133,7 +1446,11 @@ function connectEvents() {
     if (ev.status !== "running") S.now = null;
     await loadStatus();
     renderFeed();
-    if (mine(ev)) { if (ev.status === "done" && fresh(ev)) { S.ui.scriptTab = "facts"; toast("Fact check is ready."); } refreshDetail(); }
+    if (mine(ev)) {
+      if (ev.task === "verify" && ev.status === "done" && fresh(ev)) { S.ui.scriptTab = "facts"; toast("Fact check is ready."); }
+      if (ev.task === "edits" && ev.status === "done") { S.stillsV = Date.now(); if (fresh(ev)) toast("Frames updated."); }
+      refreshDetail();
+    }
   });
   es.onerror = () => { /* EventSource retries by itself */ };
 }
@@ -1152,6 +1469,7 @@ async function loadOptions() {
     if (o.styles) OPT.styles = o.styles;
     if (o.presets) OPT.presets = o.presets;
     if (o.ratios) OPT.ratios = o.ratios;
+    if (o.scenes) OPT.scenes = o.scenes;
   } catch { /* defaults match the server */ }
 }
 (async () => {

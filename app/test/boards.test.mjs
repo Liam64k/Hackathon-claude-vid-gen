@@ -91,3 +91,32 @@ test("boards: at most 40 fragments", async () => {
   for (let i = 0; i < 40; i++) assert.equal((await call(`/api/boards/${id}/fragments`, "POST", { kind: "Moment", text: `m${i}` })).status, 200);
   assert.equal((await call(`/api/boards/${id}/fragments`, "POST", { kind: "Moment", text: "one more" })).status, 400);
 });
+
+test("boards: pin persists; remix uses a different angle; replay returns", async () => {
+  const { weavePrompt, pickWeaveAngle, WEAVE_ANGLES, pinWarnings } = await import("../stages/weave.mjs");
+  const id = (await call("/api/boards", "POST", { title: "Pins" })).body.id;
+  await call(`/api/boards/${id}/fragments`, "POST", { kind: "Place", text: "A dark tower" });
+  let r = await call(`/api/boards/${id}/fragments`, "POST", { kind: "Person", text: "A night nurse" });
+  const fid = r.body.fragments[1].id;
+  assert.equal(r.body.fragments[1].pin, false);
+  assert.equal((await call(`/api/boards/${id}/fragments/${fid}`, "PATCH", { pin: "yes" })).status, 400);
+  r = await call(`/api/boards/${id}/fragments/${fid}`, "PATCH", { pin: true });
+  assert.equal(r.body.fragments[1].pin, true);
+  assert.equal((await call(`/api/boards/${id}`)).body.fragments[1].pin, true);
+  assert.match(weavePrompt((await call(`/api/boards/${id}`)).body.fragments), /PINNED fragments \(2\)/);
+  r = await call(`/api/boards/${id}/weave`, "POST", {});
+  assert.deepEqual(r.body.story.beats[0].uses, [2]);
+  const first = r.body.story;
+  let prev = null;
+  for (let i = 0; i < 4; i++) {
+    r = await call(`/api/boards/${id}/weave`, "POST", { remix: true });
+    assert.equal(r.status, 200);
+    assert.ok(r.body.story.angle && r.body.story.angle !== prev);
+    assert.notEqual(r.body.story.title, first.title);
+    assert.equal(r.body.lastAngle, r.body.story.angle);
+    prev = r.body.story.angle;
+  }
+  assert.ok(WEAVE_ANGLES.every((a) => pickWeaveAngle(a) !== a));
+  assert.match(weavePrompt([{ kind: "Place", text: "x" }], { angle: "A", previous: "Old line." }), /fresh take, different from: Old line\./);
+  assert.equal(pinWarnings([{ pin: true }], { beats: [{ uses: [] }] }).length, 1);
+});

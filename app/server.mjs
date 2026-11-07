@@ -23,8 +23,9 @@ import * as shots from "./stages/shots.mjs";
 import * as voice from "./stages/voice.mjs";
 import * as render from "./stages/render.mjs";
 import * as boards from "./lib/boards.mjs";
-import { weave } from "./stages/weave.mjs";
-import { safetyIssues, loadShots } from "./lib/validate.mjs";
+import { weave, pickWeaveAngle } from "./stages/weave.mjs";
+import { hooks } from "./stages/hooks.mjs";
+import { safetyIssues, loadShots, catalogScenes } from "./lib/validate.mjs";
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { EDITS_JSON } from "./lib/paths.mjs";
 import { checkout } from "./lib/workspace.mjs";
@@ -279,7 +280,7 @@ const routes = async (req, res, url) => {
     }
   }
 
-  if (p === "/api/options" && m === "GET") return json(res, 200, { styles: store.STYLES, presets: store.OUTPUT_PRESETS, ratios: store.RATIOS, length: { min: store.MIN_SECONDS, max: store.MAX_SECONDS, presets: store.PRESET_LENGTHS } });
+  if (p === "/api/options" && m === "GET") return json(res, 200, { styles: store.STYLES, presets: store.OUTPUT_PRESETS, ratios: store.RATIOS, length: { min: store.MIN_SECONDS, max: store.MAX_SECONDS, presets: store.PRESET_LENGTHS }, scenes: catalogScenes() });
 
   // ---- inspiration boards ----
   if (p === "/api/boards" && m === "GET") return json(res, 200, { boards: boards.list() });
@@ -296,8 +297,13 @@ const routes = async (req, res, url) => {
       return json(res, 200, boards.addFragment(id, b));
     }
     if (sub === "fragments" && fid && m === "DELETE") return json(res, 200, boards.removeFragment(id, fid));
+    if (sub === "fragments" && fid && (m === "PATCH" || m === "POST")) return json(res, 200, boards.setPin(id, fid, (await readBody(req)).pin));
     if (sub === "weave" && m === "POST") {
-      const story = await weave(board().fragments, { mode: MODE });
+      const b = await readBody(req);
+      const remix = b.remix === true;
+      const cur = board();
+      const angle = remix ? pickWeaveAngle(cur.lastAngle) : undefined;
+      const story = await weave(cur.fragments, { mode: MODE, angle, previous: remix ? cur.story?.logline : undefined });
       return json(res, 200, boards.setStory(id, story));
     }
     if (sub === "project" && m === "POST") {
@@ -337,6 +343,26 @@ const routes = async (req, res, url) => {
     if (mm[1] !== EXAMPLE_SLUG) await ensureRawShots(mm[1]);
     const d = projectDetail(mm[1]);
     return d ? json(res, 200, d) : fail(res, 404, "No such project");
+  }
+  if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/hooks$/.exec(p)) && m === "POST") {
+    const slug = mm[1];
+    const s = store.load(slug);
+    if (!s) return fail(res, 404, "No such project");
+    if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
+    const b = await readBody(req);
+    if (b.source !== "idea" && b.source !== "line") return fail(res, 400, 'source must be "idea" or "line".');
+    let input;
+    if (b.source === "idea") {
+      const list = store.readJson(path.join(episodeDir(slug), "ideas.json"))?.ideas ?? [];
+      const it = list[s.pick ?? 0];
+      if (!it) return fail(res, 409, "Pick an idea first.");
+      input = { title: it.title, premise: it.premise, hook: it.hook };
+    } else {
+      const ls = store.readJson(path.join(episodeDir(slug), "lines.json"));
+      if (!Array.isArray(ls) || !ls[0]?.text) return fail(res, 409, "Write the script first.");
+      input = { line: ls[0].text };
+    }
+    return json(res, 200, await hooks({ ...input, topic: s.title || s.topic }, { mode: MODE }));
   }
   if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/lines$/.exec(p)) && m === "POST") {
     const s = store.load(mm[1]);

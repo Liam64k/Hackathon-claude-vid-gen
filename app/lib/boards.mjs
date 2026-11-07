@@ -53,7 +53,7 @@ export const addFragment = (id, { kind, text }) => {
   const t = String(text ?? "").trim();
   if (t.length < 1 || t.length > MAX_TEXT) throw bad(`Text must be 1-${MAX_TEXT} characters.`);
   if (b.fragments.length >= MAX_FRAGMENTS) throw bad(`A board holds at most ${MAX_FRAGMENTS} fragments.`);
-  b.fragments.push({ id: newId(), kind, text: t });
+  b.fragments.push({ id: newId(), kind, text: t, pin: false });
   b.story = null; // the old weave no longer matches the pile
   return save(b);
 };
@@ -65,4 +65,17 @@ export const removeFragment = (id, fid) => {
   b.story = null;
   return save(b);
 };
-export const setStory = (id, story) => { const b = need(id); b.story = story; return save(b); };
+export const setPin = (id, fid, pin) => {
+  const b = need(id);
+  const f = b.fragments.find((x) => x.id === fid);
+  if (!f) throw bad("No such fragment", 404);
+  if (typeof pin !== "boolean") throw bad("pin must be true or false.");
+  f.pin = pin;
+  return save(b); // pinning keeps the current story; it only steers the next weave
+};
+export const setStory = (id, story) => {
+  const b = need(id);
+  b.story = story;
+  if (story?.angle) b.lastAngle = story.angle;
+  return save(b);
+};
