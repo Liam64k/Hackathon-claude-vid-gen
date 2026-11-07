@@ -4,6 +4,7 @@ const STAGES = ["ideas", "script", "shots", "voice", "render"];
 const LABEL = { ideas: "Ideas", script: "Script", shots: "Storyboard", voice: "Voice", render: "Render" };
 const SCREEN = { ideas: "ideas", script: "script", shots: "storyboard", voice: "voice", render: "render", done: "render" };
 const STEP_OF = { ideas: 1, script: 2, storyboard: 3, voice: 4, render: 5 };
+const SHORT_PRESET = { shorts: "Shorts", reels: "Reels", feed: "IG feed" };
 const FORMATS = [["story", "Story"], ["what", "What would you do?"], ["myth", "Myth vs fact"]];
 const FORMAT_FULL = { story: "Survival story", what: "What would you do?", myth: "Myth vs fact" };
 // Same rules as app/lib/store.mjs (the server clamps too).
@@ -504,7 +505,7 @@ function homeView() {
   const lookNote = h("p.look-note", { "aria-live": "polite" });
   // ---- inspector: Posting to / Shape / Custom
   const presetBtns = {};
-  const presets = h("div.presets", { role: "radiogroup", "aria-label": "Posting to" }, Object.entries(OPT.presets).map(([k, p]) => (presetBtns[k] = h("button.preset", { type: "button", role: "radio", onclick: () => { S.ui.output = { preset: k }; sync(); } }, h("span", {}, p.name), h("span.r", {}, p.ratio)))));
+  const presets = h("div.presets", { role: "radiogroup", "aria-label": "Posting to" }, Object.entries(OPT.presets).map(([k, p]) => (presetBtns[k] = h("button.preset", { type: "button", role: "radio", "aria-label": `${p.name}, ${p.ratio}`, title: p.name, onclick: () => { S.ui.output = { preset: k }; sync(); } }, h("span", {}, SHORT_PRESET[k] ?? p.name), h("span.r", {}, p.ratio)))));
   const ratioBtns = {};
   const shape = h("div.seg.mono", { role: "radiogroup", "aria-label": "Shape" }, Object.keys(OPT.ratios).map((k) => (ratioBtns[k] = h("button", { type: "button", role: "radio", onclick: () => { S.ui.output = { ratio: k }; sync(); } }, k === "custom" ? "Custom" : k))));
   const wIn = h("input", { type: "number", min: 480, max: 3840, step: 2, value: S.ui.cw, "aria-label": "Width in pixels", onchange: (e) => { S.ui.cw = Math.min(3840, Math.max(480, Math.round(Number(e.target.value)) || 1920)); e.target.value = S.ui.cw; sync(); } });
