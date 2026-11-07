@@ -11,6 +11,7 @@ export const PUBLIC = path.join(ROOT, "public");
 export const VOICE_DIR = path.join(PUBLIC, "voice");
 export const SRC = path.join(ROOT, "src");
 export const SHOTS_TS = path.join(SRC, "shots.ts");
+export const EDITS_JSON = path.join(SRC, "edits.json");
 export const AUDIO_JSON = path.join(SRC, "audio.json");
 export const SKILLS = path.join(ROOT, ".claude", "skills");
 export const REPLAYS = path.join(APP, "replays");

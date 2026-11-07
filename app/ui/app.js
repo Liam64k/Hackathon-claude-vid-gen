@@ -64,7 +64,7 @@ const S = {
   stepCost: 0,
   ui: {
     format: "story", length: 60, topic: "", voiceId: null, customVoice: "", libTab: "projects", skill: null, scriptTab: "lines", lineErrors: [],
-    style: "flat", hover: null, output: { preset: "tiktok" }, cw: 1920, ch: 1200, fragKind: "Moment", draft: "",
+    style: "flat", entry: "generate", hover: null, output: { preset: "tiktok" }, cw: 1920, ch: 1200, fragKind: "Moment", draft: "",
   },
   connecting: false,
   dirty: false,
@@ -84,7 +84,8 @@ const parseRoute = () => {
   if (parts[0] === "p" && parts[1]) return { name: "project", slug: parts[1], screen: parts[2] ?? null };
   if (parts[0] === "library") return { name: "library", tab: parts[1] ?? "projects" };
   if (parts[0] === "inspiration") return { name: "inspiration", id: parts[1] ?? null };
-  return { name: "home" };
+  if (parts[0] === "new") return { name: "home", step: ["idea", "look", "shape", "story", "review"].includes(parts[1]) ? parts[1] : null };
+  return { name: "home", step: null };
 };
 const go = (hash) => { if (location.hash !== hash) location.hash = hash; else route(); };
 window.addEventListener("hashchange", () => route());
@@ -92,6 +93,7 @@ window.addEventListener("hashchange", () => route());
 async function route() {
   const prev = S.route;
   S.route = parseRoute();
+  if (S.route.name === "home" && !S.route.step) { S.route.step = "idea"; history.replaceState(null, "", "#/new/idea"); }
   if (prev.slug !== S.route.slug) S.ui.lineErrors = [];
   if (S.route.name === "project") {
     if (!S.detail || S.detail.state?.slug !== S.route.slug) { S.detail = null; renderAll(); } // show "Loading…" at once
@@ -271,7 +273,7 @@ function renderSide() {
   const r = S.route;
   const link = (href, on, icon, label) => h("a", { href, "aria-current": on ? "page" : null }, icon, label);
   const items = [
-    link("#/", r.name === "home", ICON.plus(), "New video"),
+    link("#/new/idea", r.name === "home", ICON.plus(), "New video"),
     link("#/inspiration", r.name === "inspiration", ICON.bulb(r.name === "inspiration"), "Inspiration"),
     link("#/library", r.name === "library", ICON.grid(r.name === "library"), "Library"),
   ];
@@ -459,19 +461,36 @@ const outputBody = () => {
 };
 const SAMPLE_CAPTION = "Rule one: lock the door, stay quiet.";
 
+const FLOW = [["idea", "Idea"], ["look", "Look"], ["shape", "Shape"], ["story", "Story"], ["review", "Review"]];
+const STARTERS = [
+  ["Zombie outbreak", "What would you do on day one of a zombie outbreak?"],
+  ["Nuclear war", "What would you do in the first ten minutes after a nuclear attack warning?"],
+  ["City blackout", "What would you do if the whole city lost power for three days?"],
+  ["Flash flood", "What would you do if a flash flood hit your street at night?"],
+  ["Wildfire", "What would you do if a wildfire was heading for your town?"],
+  ["Stuck in a lift", "What would you do if you were stuck in a lift with no signal?"],
+];
+const EXAMPLES = {
+  story: "A nurse hears a knock on night three of the outbreak.",
+  what: "The sirens stop. You have ten minutes. Pick a door.",
+  myth: "Myth: hide in the basement during fallout. Fact: …",
+};
+const FORMAT_BLURB = { story: "A character, a problem, a way out.", what: "You are the hero. Pick the smart move.", myth: "Pop a common belief, then show what is true." };
+const ENTRY_NAME = { generate: "Generate script with Claude", own: "Write it myself" };
+
 function homeView() {
-  const st = S.status;
-  const replay = st?.mode === "replay";
-  const c = st?.claude;
+  const st = S.ui.step = S.route.step;
+  const replay = S.status?.mode === "replay";
+  const c = S.status?.claude;
   S.ui.hover = null;
   const submit = once(async (surprise) => {
     const topic = S.ui.topic.trim();
-    if (!surprise && !topic) { toast("Type a topic, or press Surprise me."); $("topic")?.focus(); return; }
+    if (!surprise && !topic) { toast("Type a topic, or press Surprise me."); go("#/new/idea"); return; }
     if (!claudeOk()) { toast("Connect Claude first.", true); return; }
     try {
       S.stepCost = 0;
       S.now = null;
-      const d = await api("/api/projects", { method: "POST", body: { topic, surprise, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody() } });
+      const d = await api("/api/projects", { method: "POST", body: { topic, surprise, entry: S.ui.entry, format: S.ui.format, length: S.ui.length, style: S.ui.style, output: outputBody() } });
       S.partial[d.state.slug] = [];
       S.ui.topic = "";
       await loadStatus();
@@ -479,82 +498,135 @@ function homeView() {
       go(`#/p/${d.state.slug}/ideas`);
     } catch (e) { toast(e.message, true); }
   });
-  const banner = !st ? null
+  const banner = st !== "idea" || !S.status ? null
     : replay ? h("div.banner.warn", {}, h("div.grow", {}, h("b", {}, "Replay mode. "), "Every step plays back a recorded run of the finished example “Ten Minutes Under”. No Claude calls, no API keys needed. Whatever topic you type, the result is that episode."))
     : !c?.installed ? h("div.banner", {}, h("div.grow", {}, h("b", {}, "Claude Code is not installed. "), "Studio uses your own Claude Code as its AI. Install it, then reload this page: ", h("span.kbd", {}, c?.installFix?.replace(/^Install Claude Code:\s*/, "") ?? "")))
     : !c.loggedIn ? h("div.banner", {}, h("div.grow", {}, h("b", {}, "Connect your Claude account. "), "Studio runs your own Claude Code on this computer. Signing in happens on Anthropic's page; Studio never sees your password or tokens."), h("button.btn.primary.sm", { onclick: connect, disabled: S.connecting }, S.connecting ? "Waiting for sign-in…" : "Connect Claude"))
     : null;
 
-  // ---- stage: topic + live preview + summary
-  const topic = h("input.topic#topic", { id: "topic", placeholder: narrow() ? "What would you do on day one…?" : "What would you do on day one of a zombie outbreak?", value: S.ui.topic, autocomplete: "off", maxlength: 300,
-    oninput: (e) => { S.ui.topic = e.target.value; go$.disabled = !S.ui.topic.trim(); },
-    onkeydown: (e) => { if (e.key === "Enter") submit(false); } });
-  const capText = h("span", {}, SAMPLE_CAPTION);
-  const sizeTag = h("span.pv-size");
-  const timeTag = h("span.pv-time");
-  const bar = h("div.pv-bar", {}, h("span.pv-track", {}, h("i")), timeTag);
-  const frame = h("div.pv", { role: "img" }, sizeTag, h("span.pv-play", {}, svgNode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="28" fill="currentColor" opacity="0.22"></circle><path d="M23 18v20l17-10z" fill="currentColor"></path></svg>')), h("div.cap", {}, capText), bar);
-  const summary = h("p.summary", { "aria-live": "polite" });
+  const syncs = [];
+  const sync = () => syncs.forEach((f) => f());
+  const onSync = (f) => { syncs.push(f); f(); };
+  const idx = FLOW.findIndex(([k]) => k === st);
+  const hasTopic = () => !!S.ui.topic.trim();
 
-  // ---- inspector: Look
-  const lookBtns = {};
-  const look = (k) => {
-    const label = { flat: "Flat 2D", cartoon: "Cartoon", paper: "Paper", comic: h("span", {}, "Comic"), chalk: "Chalk" }[k];
-    return (lookBtns[k] = h(`button.look.look-${k}`, { type: "button", "aria-label": styleName(k), onclick: () => { S.ui.style = k; sync(); }, onmouseenter: () => { S.ui.hover = k; sync(); }, onfocus: () => { S.ui.hover = k; sync(); }, onmouseleave: () => { S.ui.hover = null; sync(); }, onblur: () => { S.ui.hover = null; sync(); } }, label));
+  // ---- progress row
+  const progress = h("nav.fprog", { "aria-label": "New video steps" }, h("ol", {}, FLOW.map(([k, l], i) => {
+    const ok = i === 0 || hasTopic();
+    const inner = [h("span.n", {}, String(i + 1)), l];
+    const cls = `${i === idx ? "cur" : i < idx ? "done" : ""}${ok ? "" : " locked"}`;
+    return h("li", {}, ok ? h("a.fs", { class: cls, href: `#/new/${k}`, "aria-current": i === idx ? "step" : null }, inner) : h("span.fs", { class: cls, "aria-disabled": "true" }, inner));
+  })));
+
+  // ---- shared preview frame
+  const makePreview = () => {
+    const capText = h("span", {}, SAMPLE_CAPTION);
+    const sizeTag = h("span.pv-size");
+    const timeTag = h("span.pv-time");
+    const frame = h("div.pv", { role: "img" }, sizeTag, h("span.pv-play", {}, svgNode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="28" fill="currentColor" opacity="0.22"></circle><path d="M23 18v20l17-10z" fill="currentColor"></path></svg>')), h("div.cap", {}, capText), h("div.pv-bar", {}, h("span.pv-track", {}, h("i")), timeTag));
+    onSync(() => {
+      const k = S.ui.hover ?? S.ui.style;
+      const { w, h: hh } = curDims();
+      frame.style.setProperty("--ar", String(w / hh));
+      frame.setAttribute("aria-label", `Preview of ${styleName(k)}, ${w} by ${hh}`);
+      frame.className = `pv pv-${k}`;
+      sizeTag.textContent = `${w} × ${hh}`;
+      timeTag.textContent = `0:00 / ${Math.floor(S.ui.length / 60)}:${String(S.ui.length % 60).padStart(2, "0")}`;
+    });
+    return h("div.pv-wrap", {}, frame);
   };
-  const lookNote = h("p.look-note", { "aria-live": "polite" });
-  // ---- inspector: Posting to / Shape / Custom
-  const presetBtns = {};
-  const presets = h("div.presets", { role: "radiogroup", "aria-label": "Posting to" }, Object.entries(OPT.presets).map(([k, p]) => (presetBtns[k] = h("button.preset", { type: "button", role: "radio", "aria-label": `${p.name}, ${p.ratio}`, title: p.name, onclick: () => { S.ui.output = { preset: k }; sync(); } }, h("span", {}, SHORT_PRESET[k] ?? p.name), h("span.r", {}, p.ratio)))));
-  const ratioBtns = {};
-  const shape = h("div.seg.mono", { role: "radiogroup", "aria-label": "Shape" }, Object.keys(OPT.ratios).map((k) => (ratioBtns[k] = h("button", { type: "button", role: "radio", onclick: () => { S.ui.output = { ratio: k }; sync(); } }, k === "custom" ? "Custom" : k))));
-  const wIn = h("input", { type: "number", min: 480, max: 3840, step: 2, value: S.ui.cw, "aria-label": "Width in pixels", onchange: (e) => { S.ui.cw = Math.min(3840, Math.max(480, Math.round(Number(e.target.value)) || 1920)); e.target.value = S.ui.cw; sync(); } });
-  const hIn = h("input", { type: "number", min: 480, max: 3840, step: 2, value: S.ui.ch, "aria-label": "Height in pixels", onchange: (e) => { S.ui.ch = Math.min(3840, Math.max(480, Math.round(Number(e.target.value)) || 1200)); e.target.value = S.ui.ch; sync(); } });
-  const customRow = h("div.wh", {}, h("label", {}, "W", wIn), h("label", {}, "H", hIn));
-  const px = h("span.hint.mono");
-  // ---- inspector: Format + Length
-  const fmtBtns = {};
-  const fmt = h("div.seg.fmt", { role: "radiogroup", "aria-label": "Format" }, FORMATS.map(([k, l]) => (fmtBtns[k] = h("button", { type: "button", role: "radio", onclick: () => { S.ui.format = k; sync(); } }, l))));
-  const lenOut = h("span.mono", { style: { fontSize: "13px" } });
-  const lenIn = h("input#len", { id: "len", type: "range", min: MIN_S, max: MAX_S, step: 5, value: S.ui.length, oninput: (e) => { S.ui.length = Number(e.target.value); sync(); } });
 
-  const go$ = h("button.btn.primary.lg.block", { type: "button", onclick: () => submit(false), disabled: !S.ui.topic.trim() }, "Write 5 ideas");
-
-  function sync() {
-    const k = S.ui.hover ?? S.ui.style;
+  const shapeText = () => {
     const { w, h: hh } = curDims();
-    frame.style.setProperty("--ar", String(w / hh));
-    frame.setAttribute("aria-label", `Preview of ${styleName(k)}, ${w} by ${hh}`);
-    frame.className = `pv pv-${k}`;
-    sizeTag.textContent = `${w} × ${hh}`;
-    timeTag.textContent = `0:00 / ${Math.floor(S.ui.length / 60)}:${String(S.ui.length % 60).padStart(2, "0")}`;
-    for (const [key, b] of Object.entries(lookBtns)) b.setAttribute("aria-pressed", String(S.ui.style === key));
-    const ready = OPT.styles[k]?.ready;
-    mount(lookNote, h("strong", {}, `${styleName(k)}.`), ` ${STYLE_META[k].text} `, h(`span.${ready ? "ready" : "soon"}`, {}, ready ? "Renders today." : "Art pack coming."));
-    const shapeNow = curShape();
-    for (const [key, b] of Object.entries(presetBtns)) b.setAttribute("aria-checked", String(S.ui.output.preset === key));
-    for (const [key, b] of Object.entries(ratioBtns)) b.setAttribute("aria-checked", String(shapeNow === key));
-    customRow.hidden = !(S.ui.output.ratio === "custom" && !S.ui.output.preset);
-    for (const [key, b] of Object.entries(fmtBtns)) b.setAttribute("aria-checked", String(S.ui.format === key));
-    px.textContent = `${w} × ${hh}`;
-    lenOut.textContent = lenLabel(S.ui.length);
-    lenIn.setAttribute("aria-valuetext", lenLabel(S.ui.length));
-    const where = S.ui.output.preset ? `${OPT.presets[S.ui.output.preset]?.name} ${shapeNow}` : shapeNow === "custom" ? "Custom" : shapeNow;
-    summary.textContent = `${styleName(S.ui.style)} · ${where} · ${w} × ${hh} · ${lenLabel(S.ui.length)}`;
-  }
+    const sh = curShape();
+    return { w, hh, where: S.ui.output.preset ? `${OPT.presets[S.ui.output.preset]?.name} ${sh}` : sh === "custom" ? "Custom" : sh };
+  };
 
-  insp([
-    h("section.sect", {}, h("header", {}, h("h2", {}, "Look"), h("span.hint", {}, "Hover to preview")), h("div.looks", { role: "group", "aria-label": "Look" }, Object.keys(OPT.styles).map(look)), lookNote),
-    h("section.sect", {}, h("header", {}, h("h2", {}, "Posting to"), px), presets, shape, customRow),
-    h("section.sect", {}, h("header", {}, h("h2", {}, "Format")), fmt),
-    h("section.sect", {}, h("header", {}, h("h2", {}, h("label", { for: "len" }, "Length")), lenOut), lenIn, h("div.ticks", {}, h("span", {}, "20 s"), h("span", {}, "1 min"), h("span", {}, "2 min"), h("span", {}, "3 min"))),
-  ], [
-    go$,
-    h("div.two", {}, h("button.btn", { type: "button", onclick: () => submit(true) }, "Surprise me"), h("a.btn.soft", { href: "#/inspiration" }, "From fragments")),
-    h("p.note", {}, replay ? "Replay: no Claude calls." : "About 2 minutes per step. You approve each one."),
-  ]);
+  // ---- footer nav
+  const back = (to) => h("a.btn", { href: `#/new/${to}` }, "Back");
+  const nextBtn = (to) => {
+    const b = h("a.btn.primary", { href: `#/new/${to}`, onclick: (e) => { if (!hasTopic()) e.preventDefault(); } }, "Next");
+    onSync(() => { b.toggleAttribute("aria-disabled", !hasTopic()); b.classList.toggle("off", !hasTopic()); });
+    return b;
+  };
+  const fnav = (...kids) => h("div.fnav", {}, kids);
+  const screen = (cls, title, lead, ...kids) => h(`section.fscr.${cls}`, {}, h("header.fhead", {}, h("h1", {}, title), lead ? h("p.lead", {}, lead) : null), kids);
+
+  let body;
+  if (st === "idea") {
+    const area = h("textarea.topic#topic", { id: "topic", rows: 5, placeholder: "What would you do on day one of a zombie outbreak?", maxlength: 300, "aria-label": "Your video idea", autocomplete: "off",
+      oninput: (e) => { S.ui.topic = e.target.value; sync(); } });
+    area.value = S.ui.topic;
+    const chips = h("div.chips", { role: "group", "aria-label": "Starter ideas" }, STARTERS.map(([l, t]) => h("button.chip", { type: "button", onclick: () => { S.ui.topic = t; area.value = t; sync(); area.focus(); } }, l)));
+    const cards = ["generate", "own"].map((k) => {
+      const btn = h("button.choice", { type: "button", "aria-pressed": String(S.ui.entry === k), onclick: () => { if (!hasTopic()) { toast("Write your idea first."); area.focus(); return; } S.ui.entry = k; go("#/new/look"); } },
+        h("b", {}, ENTRY_NAME[k]), h("span", {}, k === "generate" ? "Claude writes 5 ideas, then the script. You approve each step." : "You write the narration line by line. Claude only helps if you ask."));
+      onSync(() => btn.classList.toggle("off", !hasTopic()));
+      return btn;
+    });
+    body = [h("section.fscr.idea", {}, h("header.fhead", {}, h("h1", {}, "What's your video about?"), h("p.lead", {}, "One sentence is enough. Pick a starter or write your own.")), area, h("div.row.between", {}, chips, h("a.spark-link", { href: "#/spark" }, "Need a spark? Roll the dice")), h("div.choices", {}, cards)), fnav(nextBtn("look"))];
+  } else if (st === "look") {
+    const lookBtns = {};
+    const LABEL_OF = { flat: "Flat 2D", cartoon: "Cartoon", paper: "Paper", comic: h("span", {}, "Comic"), chalk: "Chalk" };
+    const look = (k) => (lookBtns[k] = h(`button.look.look-${k}`, { type: "button", "aria-label": styleName(k), onclick: () => { S.ui.style = k; sync(); }, onmouseenter: () => { S.ui.hover = k; sync(); }, onfocus: () => { S.ui.hover = k; sync(); }, onmouseleave: () => { S.ui.hover = null; sync(); }, onblur: () => { S.ui.hover = null; sync(); } }, LABEL_OF[k]));
+    const note = h("p.look-note", { "aria-live": "polite" });
+    const grid = h("div.looks", { role: "group", "aria-label": "Look" }, Object.keys(OPT.styles).map(look));
+    onSync(() => {
+      const k = S.ui.hover ?? S.ui.style;
+      for (const [key, b] of Object.entries(lookBtns)) b.setAttribute("aria-pressed", String(S.ui.style === key));
+      const ready = OPT.styles[k]?.ready;
+      mount(note, h("strong", {}, `${styleName(k)}.`), ` ${STYLE_META[k].text} `, h(`span.${ready ? "ready" : "soon"}`, {}, ready ? "Renders today." : "Art pack coming."));
+    });
+    body = [h("div.split", {}, h("section.fscr.looksel", {}, h("header.fhead", {}, h("h1", {}, "Pick a look"), h("p.lead", {}, "Hover to preview, click to choose.")), grid, note), makePreview()), fnav(back("idea"), nextBtn("shape"))];
+  } else if (st === "shape") {
+    const presetBtns = {};
+    const cards = Object.entries(OPT.presets).map(([k, p]) => {
+      const kk = 44 / Math.max(p.width, p.height);
+      return (presetBtns[k] = h("button.preset", { type: "button", role: "radio", "aria-label": `${p.name}, ${p.ratio}, ${p.width} by ${p.height}`, onclick: () => { S.ui.output = { preset: k }; sync(); } },
+        h("span.shape", {}, h("i", { style: { width: `${Math.round(p.width * kk)}px`, height: `${Math.round(p.height * kk)}px` } })),
+        h("span.pn", {}, p.name), h("span.r", {}, `${p.ratio} · ${p.width} × ${p.height}`)));
+    });
+    const ratioBtns = {};
+    const seg = h("div.seg.mono", { role: "radiogroup", "aria-label": "Shape" }, Object.keys(OPT.ratios).map((k) => (ratioBtns[k] = h("button", { type: "button", role: "radio", onclick: () => { S.ui.output = { ratio: k }; sync(); } }, k === "custom" ? "Custom" : k))));
+    const wIn = h("input", { type: "number", min: 480, max: 3840, step: 2, value: S.ui.cw, "aria-label": "Width in pixels", onchange: (e) => { S.ui.cw = Math.min(3840, Math.max(480, Math.round(Number(e.target.value)) || 1920)); e.target.value = S.ui.cw; sync(); } });
+    const hIn = h("input", { type: "number", min: 480, max: 3840, step: 2, value: S.ui.ch, "aria-label": "Height in pixels", onchange: (e) => { S.ui.ch = Math.min(3840, Math.max(480, Math.round(Number(e.target.value)) || 1200)); e.target.value = S.ui.ch; sync(); } });
+    const customRow = h("div.wh", {}, h("label", {}, "W", wIn), h("span.faint", {}, "×"), h("label", {}, "H", hIn));
+    const size = h("span.mono.faint");
+    onSync(() => {
+      const sh = curShape();
+      for (const [key, b] of Object.entries(presetBtns)) b.setAttribute("aria-checked", String(S.ui.output.preset === key));
+      for (const [key, b] of Object.entries(ratioBtns)) b.setAttribute("aria-checked", String(sh === key));
+      customRow.hidden = !(S.ui.output.ratio === "custom" && !S.ui.output.preset);
+      const { w, hh } = shapeText();
+      size.textContent = `Output: ${w} × ${hh} px`;
+    });
+    body = [screen("shapesel", "Where will it be posted?", "Pick a preset, or choose a shape below.", h("div.presets", { role: "radiogroup", "aria-label": "Posting to" }, cards), h("div.shapeline", {}, h("span.lbl", {}, "Shape"), seg, size), customRow), fnav(back("look"), nextBtn("story"))];
+  } else if (st === "story") {
+    const fmtBtns = {};
+    const cards = FORMATS.map(([k, l]) => (fmtBtns[k] = h("button.fmtcard", { type: "button", role: "radio", onclick: () => { S.ui.format = k; sync(); } }, h("b", {}, l), h("span.blurb", {}, FORMAT_BLURB[k]), h("q", {}, EXAMPLES[k]))));
+    const lenOut = h("output.bigval");
+    const lenIn = h("input#len", { id: "len", type: "range", min: MIN_S, max: MAX_S, step: 5, value: S.ui.length, oninput: (e) => { S.ui.length = Number(e.target.value); sync(); } });
+    onSync(() => {
+      for (const [key, b] of Object.entries(fmtBtns)) b.setAttribute("aria-checked", String(S.ui.format === key));
+      lenOut.textContent = lenLabel(S.ui.length);
+      lenIn.setAttribute("aria-valuetext", lenLabel(S.ui.length));
+    });
+    body = [screen("storysel", "How should it be told?", null, h("div.fmtcards", { role: "radiogroup", "aria-label": "Format" }, cards),
+      h("div.lenbox", {}, h("div.row.between", {}, h("label", { for: "len" }, "Length"), lenOut), lenIn, h("div.ticks", {}, h("span", {}, "20 s"), h("span", {}, "1 min"), h("span", {}, "2 min"), h("span", {}, "3 min")))), fnav(back("shape"), nextBtn("review"))];
+  } else {
+    const rows = h("dl.sumlist");
+    onSync(() => {
+      const { w, hh, where } = shapeText();
+      const items = [["Idea", S.ui.topic.trim() || "Not written yet", "idea"], ["Look", styleName(S.ui.style), "look"], ["Shape", `${where} · ${w} × ${hh}`, "shape"], ["Format", FORMAT_FULL[S.ui.format], "story"], ["Length", lenLabel(S.ui.length), "story"], ["Script", ENTRY_NAME[S.ui.entry], "idea"]];
+      mount(rows, items.map(([l, v, to]) => h("div", {}, h("dt", {}, l), h("dd", {}, v), h("a", { href: `#/new/${to}`, "aria-label": `Edit ${l}` }, "Edit"))));
+    });
+    const own = S.ui.entry === "own";
+    const prim = h("button.btn.primary.lg", { type: "button", onclick: () => submit(false) }, own ? "Start writing" : "Write 5 ideas");
+    onSync(() => { prim.disabled = !hasTopic(); });
+    body = [h("div.split", {}, h("section.fscr", {}, h("header.fhead", {}, h("h1", {}, "Ready to go?"), h("p.lead", {}, replay ? "Replay: no Claude calls." : "About 2 minutes per step. You approve each one.")), rows), makePreview()), fnav(back("story"), h("button.btn.lg", { type: "button", onclick: () => submit(true) }, "Surprise me"), prim)];
+  }
   sync();
-  return [banner, h("div.topic-wrap", {}, h("label", { for: "topic" }, "What is the video about?"), topic), h("div.pv-wrap", {}, frame), summary];
+  return [banner, progress, h("div.fbody", {}, body)];
 }
 const projCard = (p) =>
   h("a.proj-card", { href: `#/p/${p.slug}` },

@@ -3,7 +3,8 @@
 // stills + contact sheet, and saves the build to episodes/<slug>/build/.
 import path from "node:path";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { OUT, SHOTS_TS, episodeDir, rel } from "../lib/paths.mjs";
+import { EDITS_JSON, OUT, SHOTS_TS, episodeDir, rel } from "../lib/paths.mjs";
+import { summarizeRaw } from "../lib/edits.mjs";
 import { readJson, writeJson } from "../lib/store.mjs";
 import { loadShots, validateShots } from "../lib/validate.mjs";
 import { checkout, saveCurrent, EXAMPLE_BUILD } from "../lib/workspace.mjs";
@@ -52,7 +53,7 @@ const verify = async (ctx, lines) => {
   return errs;
 };
 
-const copyStoryboard = (slug, stills) => {
+export const copyStoryboard = (slug, stills) => {
   const dir = path.join(episodeDir(slug), "storyboard");
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -80,7 +81,9 @@ export const run = async (ctx) => {
     copyFileSync(path.join(EXAMPLE_BUILD, "storyboard.png"), path.join(ep, "storyboard.png"));
     mkdirSync(path.join(ep, "build"), { recursive: true });
     copyFileSync(path.join(EXAMPLE_BUILD, "shots.ts"), path.join(ep, "build", "shots.ts"));
+    rmSync(path.join(ep, "build", "edits.json"), { force: true });
     const ex = await loadShots(path.join(EXAMPLE_BUILD, "shots.ts"));
+    writeJson(path.join(ep, "rawshots.json"), summarizeRaw(ex.SHOTS));
     writeJson(path.join(ep, "shots.json"), ex.SHOTS.map((s) => ({ id: s.id, line: s.line, scene: s.scene, weight: s.weight })));
     ctx.update((s) => (s.stages.shots.shots = ex.SHOTS.length));
     ctx.artifact("storyboard", rel(path.join(ep, "storyboard.png")), { stills: stills.length });
@@ -88,6 +91,9 @@ export const run = async (ctx) => {
   }
 
   checkout(ctx.slug);
+  // fresh shots from Claude: old frame/timing edits no longer match them
+  writeFileSync(EDITS_JSON, "null\n");
+  rmSync(path.join(ep, "build", "edits.json"), { force: true });
   ctx.activity(`Workspace: src/ now holds "${p.title ?? ctx.slug}"`, { tool: "server" });
   // If this run fails or is stopped, put back the last good shots.ts so a half-edited file never
   // reaches the project's saved build (saveCurrent runs when another project is checked out).
@@ -111,6 +117,7 @@ export const run = async (ctx) => {
   saveCurrent();
   const shots = await loadShots();
   writeJson(path.join(ep, "shots.json"), shots.SHOTS.map((s) => ({ id: s.id, line: s.line, scene: s.scene, weight: s.weight })));
+  writeJson(path.join(ep, "rawshots.json"), summarizeRaw(shots.SHOTS));
   ctx.update((s) => (s.stages.shots.shots = shots.SHOTS.length));
   ctx.artifact("shots", "src/shots.ts");
 

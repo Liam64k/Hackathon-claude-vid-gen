@@ -95,6 +95,7 @@ export interface Shot {
   line: number; // narration line index
   id?: string; // shotlist id ("1a")
   weight?: number; // share of the line's duration (seconds from the shotlist)
+  sec?: number; // user-fixed length in seconds (edits.json); overrides weight
   scene: SceneId;
   from: Cam;
   to?: Cam;

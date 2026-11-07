@@ -24,7 +24,13 @@ import * as voice from "./stages/voice.mjs";
 import * as render from "./stages/render.mjs";
 import * as boards from "./lib/boards.mjs";
 import { weave } from "./stages/weave.mjs";
-import { safetyIssues } from "./lib/validate.mjs";
+import { safetyIssues, loadShots } from "./lib/validate.mjs";
+import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { EDITS_JSON } from "./lib/paths.mjs";
+import { checkout } from "./lib/workspace.mjs";
+import { storyboard } from "./lib/remotion-tasks.mjs";
+import { copyStoryboard } from "./stages/shots.mjs";
+import { editsFile, ensureRawShots, rawFile, summarizeRaw, timingFor, validateEdits } from "./lib/edits.mjs";
 
 for (const [id, mod] of Object.entries({ ideas, script, shots, voice, render })) registerStage(id, mod);
 
@@ -142,6 +148,9 @@ const projectDetail = (slug) => {
     scriptMd: readText(path.join(d, "script.md")),
     shotlistMd: readText(path.join(d, "shotlist.md")),
     shots: store.readJson(path.join(d, "shots.json")),
+    rawShots: store.readJson(rawFile(slug)), // [{base,id,line,scene,zoom,text,weight}] from shots.ts, for the frame editor
+    edits: store.readJson(editsFile(slug), null), // {shots?:[{base,line?,scene?,zoom?,text?,sec?}], lines?:{[i]:{sec}}} | null
+    timing: timingFor(slug), // {fps,total,totalSec,lines:[{i,start,end,voiceSec}],shots:[{idx,base,line,start,end}]} in frames
     storyboard: exists(path.join(d, "storyboard.png")),
     stills: existsSync(sbDir) ? readdirSync(sbDir).filter((f) => f.endsWith(".png")).sort().map((f) => `episodes/${slug}/storyboard/${f}`) : [],
     audio: store.readJson(path.join(d, "audio.json")),
@@ -212,6 +221,10 @@ const approve = async (slug, stage, body) => {
   if (stage === "script" && body.lines) {
     const v = script.saveLines(slug, body.lines, s.length);
     if (!v.saved) throw Object.assign(new Error(`Fix the script first: ${v.errors[0]}`), { status: 400, errors: v.errors });
+  }
+  if (stage === "script") {
+    const ls = store.readJson(path.join(episodeDir(slug), "lines.json"));
+    if (!Array.isArray(ls) || !ls.length) throw Object.assign(new Error("Add at least one line to the script before approving it."), { status: 400 });
   }
   store.update(slug, (x) => (x.stages[stage].status = "approved"));
   bus.send("stage", { slug, stage, status: "approved" });
@@ -307,12 +320,21 @@ const routes = async (req, res, url) => {
     const topic = String(b.topic ?? "").trim();
     if (!b.surprise && !topic) return fail(res, 400, "Type a topic or press Surprise me.");
     if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
-    const s = store.createProject({ topic, surprise: !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE });
+    if (b.entry === "own") {
+      if (!topic) return fail(res, 400, "Write what your video is about first.");
+      const bad = safetyIssues(topic);
+      if (bad.length) return fail(res, 400, `That touches ${bad.join(", ")}, which Studio does not make videos about.`, { code: "unsafe_topic" });
+    }
+    const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry });
     bus.send("project", { slug: s.slug });
-    startStage(s.slug, "ideas", {});
+    if (s.entry === "own") {
+      script.seedOwnProject(s.slug, topic);
+      bus.send("stage", { slug: s.slug, stage: "script", status: "review" });
+    } else startStage(s.slug, "ideas", {});
     return json(res, 201, projectDetail(s.slug));
   }
   if ((mm = /^\/api\/projects\/([a-z0-9-]+)$/.exec(p)) && m === "GET") {
+    if (mm[1] !== EXAMPLE_SLUG) await ensureRawShots(mm[1]);
     const d = projectDetail(mm[1]);
     return d ? json(res, 200, d) : fail(res, 404, "No such project");
   }
@@ -324,6 +346,42 @@ const routes = async (req, res, url) => {
     const v = script.saveLines(mm[1], b.lines, s.length);
     if (v.saved) store.update(mm[1], (x) => (x.stages.script.words = v.words));
     return json(res, v.saved ? 200 : 400, v);
+  }
+  if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/shots\/edits$/.exec(p)) && m === "POST") {
+    const slug = mm[1];
+    const s = store.load(slug);
+    if (!s) return fail(res, 404, "No such project");
+    if (!["review", "approved"].includes(s.stages.shots.status)) return fail(res, 409, "The storyboard can be edited once it has been drawn.");
+    if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
+    const b = await readBody(req);
+    const lines = store.readJson(path.join(episodeDir(slug), "lines.json")) ?? [];
+    let raw;
+    try { raw = (await loadShots(path.join(episodeDir(slug), "build", "shots.ts"))).SHOTS; } catch { return fail(res, 409, "This project has no saved shots yet."); }
+    const v = await validateEdits(b.edits ?? null, { raw, lines });
+    if (v.errors.length) return fail(res, 400, `Fix the edits first: ${v.errors[0]}`, { errors: v.errors });
+    store.writeJson(editsFile(slug), v.edits);
+    store.writeJson(rawFile(slug), summarizeRaw(raw));
+    store.update(slug, (x) => {
+      if (x.stages.shots.status === "approved") store.resetFrom(x, "voice");
+      x.stages.shots.status = "review";
+    });
+    bus.send("stage", { slug, stage: "shots", status: "review" });
+    startTask(slug, "edits", "shots", async (ctx) => {
+      checkout(slug);
+      writeFileSync(EDITS_JSON, JSON.stringify(v.edits) + "\n");
+      const applied = v.applied;
+      ctx.activity(`Rendering ${applied.length} stills with your edits`, { tool: "server" });
+      const sb = await storyboard(applied.length, { onProgress: (f, l) => ctx.progress(f, l), onCancel: ctx.onCancel });
+      ctx.checkAborted();
+      if (!sb.ok) throw Object.assign(new Error("The storyboard render failed."), { code: "storyboard", tail: sb.tail });
+      const ep = episodeDir(slug);
+      copyStoryboard(slug, sb.stills);
+      copyFileSync(path.join(OUT, "storyboard.png"), path.join(ep, "storyboard.png"));
+      store.writeJson(path.join(ep, "shots.json"), applied.map((x) => ({ id: x.id, line: x.line, scene: x.scene, weight: x.weight })));
+      store.update(slug, (x) => (x.stages.shots.shots = applied.length));
+      ctx.artifact("storyboard", rel(path.join(ep, "storyboard.png")), { stills: sb.tiles });
+    });
+    return json(res, 202, { started: true, edits: v.edits, timing: timingFor(slug) });
   }
   if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/stages\/(ideas|script|shots|voice|render)\/(run|approve|cancel)$/.exec(p)) && m === "POST") {
     const [, slug, stage, action] = mm;

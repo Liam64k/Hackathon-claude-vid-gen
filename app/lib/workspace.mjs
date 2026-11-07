@@ -4,7 +4,7 @@
 // episodes/<slug>/build/. The example's originals are snapshotted once, before anything is changed.
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { AUDIO_JSON, EXAMPLE_DIR, EXAMPLE_SLUG, OUT, RUNTIME, SHOTS_TS, VOICE_DIR, episodeDir } from "./paths.mjs";
+import { AUDIO_JSON, EDITS_JSON, EXAMPLE_DIR, EXAMPLE_SLUG, OUT, RUNTIME, SHOTS_TS, VOICE_DIR, episodeDir } from "./paths.mjs";
 import { readJson, writeJson } from "./store.mjs";
 
 const OWNER_FILE = path.join(RUNTIME, "workspace.json");
@@ -38,6 +38,7 @@ export const saveCurrent = () => {
   mkdirSync(path.join(dir, "voice"), { recursive: true });
   copyFileSync(SHOTS_TS, path.join(dir, "shots.ts"));
   copyFileSync(AUDIO_JSON, path.join(dir, "audio.json"));
+  if (existsSync(EDITS_JSON)) copyFileSync(EDITS_JSON, path.join(dir, "edits.json"));
   for (const f of voiceClips(path.join(dir, "voice"))) rmSync(path.join(dir, "voice", f));
   for (const f of voiceClips(VOICE_DIR)) copyFileSync(path.join(VOICE_DIR, f), path.join(dir, "voice", f));
 };
@@ -51,6 +52,7 @@ export const checkout = (slug) => {
   copyFileSync(dir ? path.join(dir, "shots.ts") : path.join(EXAMPLE_BUILD, "shots.ts"), SHOTS_TS);
   const audio = dir && existsSync(path.join(dir, "audio.json")) ? readFileSync(path.join(dir, "audio.json")) : JSON.stringify({ voice: {}, sfx: {} }, null, 2) + "\n";
   writeFileSync(AUDIO_JSON, audio);
+  writeFileSync(EDITS_JSON, dir && existsSync(path.join(dir, "edits.json")) ? readFileSync(path.join(dir, "edits.json")) : "null\n");
   for (const f of voiceClips(VOICE_DIR)) rmSync(path.join(VOICE_DIR, f));
   if (dir) for (const f of voiceClips(path.join(dir, "voice"))) copyFileSync(path.join(dir, "voice", f), path.join(VOICE_DIR, f));
   setOwner(slug);

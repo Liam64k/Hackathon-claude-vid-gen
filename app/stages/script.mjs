@@ -3,7 +3,8 @@
 import path from "node:path";
 import { copyFileSync, existsSync, readFileSync, rmSync } from "node:fs";
 import { APP, EXAMPLE_DIR, episodeDir, rel } from "../lib/paths.mjs";
-import { readJson, writeJson } from "../lib/store.mjs";
+import { readJson, update as updateProject, writeJson } from "../lib/store.mjs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { validateLines, wordCount } from "../lib/validate.mjs";
 import { StageError } from "../jobs.mjs";
 import { PACK_BRIEF, PREAMBLE, formatText, lengthText, lineText, styleText } from "./prompts.mjs";
@@ -90,11 +91,32 @@ export const run = async (ctx) => {
   ctx.artifact("shotlist", rel(f.shotlist));
 };
 
-// User edits from the Script screen. Returns validation result; writes only valid structure.
+// Write-it-myself entry: no Claude call. One idea built from the user's text, Ideas approved with pick 0,
+// empty lines.json, template script.md / shotlist.md, Script waiting in review.
+export const seedOwnProject = (slug, topic) => {
+  const text = String(topic ?? "").replace(/\s+/g, " ").trim();
+  const title = text.split(" ").slice(0, 6).join(" ").replace(/[.,:;!?]+$/, "").replace(/\b([a-z])/g, (c) => c.toUpperCase()) || "My Story";
+  const d = episodeDir(slug);
+  const f = files(slug);
+  mkdirSync(d, { recursive: true });
+  writeJson(path.join(d, "ideas.json"), { ideas: [{ title, premise: text, hook: "", twist: "", world: "", diagrams: [], fact: "", verify: "", risk: "low", score: 0 }] });
+  writeJson(f.lines, []);
+  writeFileSync(f.script, `# ${title}\n\n${text}\n\n## Narration\n\n(Write your lines in Studio.)\n\n## Facts to verify\n\n(none yet)\n`);
+  writeFileSync(f.shotlist, `# Beat board: ${title}\n\nWritten by the author, no Claude draft. Plan 2-3 shots per narration line.\n\n| id | seconds | scene | camera | figures + pose | on-screen UI | purpose |\n|---|---|---|---|---|---|---|\n`);
+  updateProject(slug, (s) => {
+    s.title = title.slice(0, 80);
+    s.pick = 0;
+    s.stages.ideas.status = "approved";
+    s.stages.script.status = "review";
+  });
+};
+
+// User edits from the Script screen. Any full array is accepted (add / delete / move / split lines); only
+// structural problems block saving. Line-count and word-count targets are warnings here, not blockers.
 export const saveLines = (slug, lines, length) => {
   const clean = (Array.isArray(lines) ? lines : []).map((l) => ({ text: String(l?.text ?? "").replace(/\s+/g, " ").trim(), highlight: (Array.isArray(l?.highlight) ? l.highlight : []).map(String).filter(Boolean).slice(0, 4) }));
   const v = validateLines(clean, length);
-  const blocking = v.errors.filter((e) => !/^script is \d+ words/.test(e));
+  const blocking = v.errors.filter((e) => !/^script is \d+ words/.test(e) && !/^expected \d+-\d+ lines/.test(e));
   if (!blocking.length) writeJson(files(slug).lines, clean);
   return { ...v, saved: !blocking.length };
 };

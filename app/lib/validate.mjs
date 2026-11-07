@@ -123,6 +123,21 @@ export const loadShots = async (file = SHOTS_TS) => {
   }
 };
 
+// src/edits.ts bundled with esbuild (it imports edits.json); gives the real applyEdits to the server.
+let editsMod = null;
+export const applyEditsTs = async (raw, edits) => {
+  if (!editsMod) {
+    const { buildSync } = require("esbuild");
+    const out = buildSync({ entryPoints: [path.join(ROOT, "src", "edits.ts")], bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent" }).outputFiles[0].text;
+    mkdirSync(RUNTIME, { recursive: true });
+    const tmp = path.join(RUNTIME, `edits-${process.pid}-${Date.now()}.mjs`);
+    writeFileSync(tmp, out);
+    try { editsMod = await import(pathToFileURL(tmp).href); } finally { rmSync(tmp, { force: true }); }
+  }
+  return editsMod.applyEdits(raw, edits);
+};
+
+export const catalogScenes = () => Object.keys(catalog().scenes ?? {});
 const catalog = () => JSON.parse(readFileSync(path.join(APP, "pack-catalog.json"), "utf8"));
 
 export const validateShots = ({ LINES, SHOTS }, lines) => {
