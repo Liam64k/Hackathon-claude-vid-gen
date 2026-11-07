@@ -59,10 +59,4 @@ export const checkout = (slug) => {
   return true;
 };
 
-// Reset the workspace audio (new script = old clips are wrong).
-export const clearVoice = () => {
-  for (const f of voiceClips(VOICE_DIR)) rmSync(path.join(VOICE_DIR, f));
-  writeFileSync(AUDIO_JSON, JSON.stringify({ voice: {}, sfx: {} }, null, 2) + "\n");
-};
-
 export { voiceClips };

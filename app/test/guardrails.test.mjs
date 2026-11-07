@@ -134,9 +134,9 @@ test("files: malformed URLs are refused, Range suffixes clamp, HEAD sends no bod
   const t = { host, "x-studio-token": srv.token };
   assert.equal(resolveServed("%E0%A4%A"), null);
   assert.equal((await req({ path: "/files/out/%E0%A4%A", headers: t })).status, 403);
-  const whole = await req({ path: "/files/out/style/cast-sheet.png", headers: { ...t, range: "bytes=-999999999" } });
+  const whole = await req({ path: "/files/episodes/ten-minutes-under/cover.png", headers: { ...t, range: "bytes=-999999999" } });
   assert.equal(whole.status, 206, "suffix longer than the file returns the whole file");
-  const head = await req({ path: "/files/out/style/cast-sheet.png", method: "HEAD", headers: { ...t, range: "bytes=0-9" } });
+  const head = await req({ path: "/files/episodes/ten-minutes-under/cover.png", method: "HEAD", headers: { ...t, range: "bytes=0-9" } });
   assert.equal(head.status, 206);
   assert.equal(head.body.length, 0);
   assert.equal((await req({ path: "/files/out/nope.png", headers: t })).status, 404);

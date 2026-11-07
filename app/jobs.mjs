@@ -5,6 +5,7 @@ import * as usage from "./lib/usage.mjs";
 import { claudeCli } from "./engine/claude.mjs";
 import { replay, createRecorder } from "./engine/replay.mjs";
 import { SYSTEM } from "./stages/prompts.mjs";
+import { httpError } from "./lib/errors.mjs";
 
 export const MODE = process.env.STUDIO_MODE === "replay" || process.argv.includes("--replay") ? "replay" : "live";
 
@@ -16,8 +17,9 @@ export class StageError extends Error {
   }
 }
 
-// Provider interface { run(stage, prompt, opts) -> { events: AsyncIterable, cancel() } }.
-// "anthropic-api-key" is documented in app/engine/index.mjs as a stub only (not built).
+// Provider interface { run(stage, prompt, opts) -> { events: AsyncIterable, cancel() } }: the user's own
+// signed-in `claude` (engine/claude.mjs) or recorded runs (engine/replay.mjs). There is deliberately no
+// API-key provider: the AI is always the user's own Claude Code login, and keys are never stored.
 const providerFor = (mode) => (mode === "replay" ? replay : claudeCli);
 
 let job = null;
@@ -28,16 +30,28 @@ export const registerStage = (id, mod) => (STAGE_MODULES[id] = mod);
 
 const needApproved = { ideas: [], script: ["ideas"], shots: ["ideas", "script"], voice: ["ideas", "script", "shots"], render: ["ideas", "script", "shots", "voice"] };
 
-export const startStage = (slug, stage, opts = {}) => {
-  if (job) throw Object.assign(new Error(`Studio is busy with ${job.stage} for another step. Wait for it or stop it first.`), { status: 409 });
-  const mod = STAGE_MODULES[stage];
-  if (!mod) throw Object.assign(new Error(`Unknown stage ${stage}`), { status: 404 });
+// Throws a 409 while a job runs: Studio does one thing at a time.
+const TASK_LABELS = { edits: "updating frames", verify: "checking facts" };
+export const assertIdle = () => {
+  if (job) throw httpError(409, `Studio is busy (${TASK_LABELS[job.stage] ?? store.STAGE_LABELS[job.stage] ?? job.stage}). Wait for it or stop it first.`);
+};
+
+// The project, if a job may start on it now. A replay project never runs under the Live pill, and a
+// live project never runs in Replay.
+const runnable = (slug) => {
+  assertIdle();
   const project = store.load(slug);
-  if (!project) throw Object.assign(new Error(`No project ${slug}`), { status: 404 });
-  for (const p of needApproved[stage]) if (project.stages[p].status !== "approved") throw Object.assign(new Error(`Approve ${store.STAGE_LABELS[p]} first.`), { status: 409 });
-  // A replay project never runs under the Live pill, and a live project never runs in Replay.
+  if (!project) throw httpError(404, `No project ${slug}`);
+  if ((project.mode ?? "live") !== MODE) throw httpError(409, `This project was made in ${project.mode} mode; Studio is running in ${MODE} mode.`);
+  return project;
+};
+
+export const startStage = (slug, stage, opts = {}) => {
+  const mod = STAGE_MODULES[stage];
+  if (!mod) throw httpError(404, `Unknown stage ${stage}`);
+  const project = runnable(slug);
+  for (const p of needApproved[stage]) if (project.stages[p].status !== "approved") throw httpError(409, `Approve ${store.STAGE_LABELS[p]} first.`);
   const mode = MODE;
-  if ((project.mode ?? "live") !== mode) throw Object.assign(new Error(`This project was made in ${project.mode} mode; Studio is running in ${MODE} mode.`), { status: 409 });
 
   const ac = new AbortController();
   const cancels = [];
@@ -85,11 +99,8 @@ export const startStage = (slug, stage, opts = {}) => {
 // A side task (e.g. "verify" facts) that uses Claude but does not move the stage gates. Its events are
 // tagged with a stage so the right screen shows them; its cost is added to that stage.
 export const startTask = (slug, task, stage, fn) => {
-  if (job) throw Object.assign(new Error(`Studio is busy with ${job.stage}. Wait for it or stop it first.`), { status: 409 });
-  const project = store.load(slug);
-  if (!project) throw Object.assign(new Error(`No project ${slug}`), { status: 404 });
+  runnable(slug);
   const mode = MODE;
-  if ((project.mode ?? "live") !== mode) throw Object.assign(new Error(`This project was made in ${project.mode} mode; Studio is running in ${MODE} mode.`), { status: 409 });
   const ac = new AbortController();
   const cancels = [];
   job = { slug, stage: task, mode, startedAt: Date.now(), ac, cancels };

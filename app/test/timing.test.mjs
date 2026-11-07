@@ -1,7 +1,7 @@
 // app/lib/timing.mjs must match src/timeline.ts frame for frame (the real TS is bundled with esbuild).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import path from "node:path";

@@ -1,5 +1,5 @@
-// Plain-JS mirror of src/timeline.ts (frame layout) and src/edits.ts (shot ordering). Keep in sync;
-// app/test/timing.test.mjs checks it against the real TS on the example episode.
+// Plain-JS mirror of src/timeline.ts (frame layout) and src/edits.ts (shot ordering), shared by the UI and
+// the server (app/lib/timing.mjs re-exports it). app/test/timing.test.mjs checks it against the real TS.
 export const FPS = 30;
 const GAP_F = Math.round(0.3 * FPS);
 const WORDS_PER_SEC = 2.6;

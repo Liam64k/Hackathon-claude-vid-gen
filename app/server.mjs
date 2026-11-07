@@ -11,9 +11,10 @@ import { ROOT, UI, SKILLS, OUT, RUNTIME, EXAMPLE_SLUG, EXAMPLE_DIR, episodeDir, 
 import * as bus from "./lib/bus.mjs";
 import * as store from "./lib/store.mjs";
 import * as usage from "./lib/usage.mjs";
-import { ensureExampleSnapshot, EXAMPLE_BUILD, owner } from "./lib/workspace.mjs";
+import { ensureExampleSnapshot, EXAMPLE_BUILD, owner, voiceClips } from "./lib/workspace.mjs";
 import { setElevenKey, elevenKeySource, redact } from "./lib/secrets.mjs";
-import { MODE, registerStage, startStage, startTask, cancel, current } from "./jobs.mjs";
+import { MODE, assertIdle, registerStage, startStage, startTask, cancel, current } from "./jobs.mjs";
+import { httpError } from "./lib/errors.mjs";
 import { verifyFacts } from "./stages/extras.mjs";
 import { startLogin } from "./engine/claude.mjs";
 import { checkClaude, runDoctor } from "./doctor.mjs";
@@ -26,12 +27,7 @@ import * as boards from "./lib/boards.mjs";
 import { weave, pickWeaveAngle } from "./stages/weave.mjs";
 import { hooks } from "./stages/hooks.mjs";
 import { safetyIssues, loadShots, catalogScenes } from "./lib/validate.mjs";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { EDITS_JSON } from "./lib/paths.mjs";
-import { checkout } from "./lib/workspace.mjs";
-import { storyboard } from "./lib/remotion-tasks.mjs";
-import { copyStoryboard } from "./stages/shots.mjs";
-import { editsFile, ensureRawShots, rawFile, summarizeRaw, timingFor, validateEdits } from "./lib/edits.mjs";
+import { buildShotsFile, editsFile, ensureRawShots, rawFile, timingFor, validateEdits } from "./lib/edits.mjs";
 
 for (const [id, mod] of Object.entries({ ideas, script, shots, voice, render })) registerStage(id, mod);
 
@@ -76,12 +72,12 @@ const readBody = (req) =>
     const chunks = [];
     req.on("data", (c) => {
       size += c.length;
-      if (size > 1_000_000) { reject(Object.assign(new Error("Request too large"), { status: 413 })); req.destroy(); }
+      if (size > 1_000_000) { reject(httpError(413, "Request too large")); req.destroy(); }
       else chunks.push(c);
     });
     req.on("end", () => {
       if (!chunks.length) return resolve({});
-      try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8"))); } catch { reject(Object.assign(new Error("Invalid JSON"), { status: 400 })); }
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8"))); } catch { reject(httpError(400, "Invalid JSON")); }
     });
     req.on("error", reject);
   });
@@ -111,6 +107,12 @@ const sendFile = (req, res, file, { cache = "no-cache" } = {}) => {
 };
 
 const readText = (f) => (existsSync(f) ? readFileSync(f, "utf8") : null);
+// line-N.mp3 paths in a folder, in line order, as /files paths.
+const clipPaths = (dir) => voiceClips(dir).sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5))).map((f) => rel(path.join(dir, f)));
+const unsafeTopic = (text) => {
+  const bad = safetyIssues(text);
+  return bad.length ? httpError(400, `That touches ${bad.join(", ")}, which Studio does not make videos about.`, { code: "unsafe_topic" }) : null;
+};
 
 // ---- status ----------------------------------------------------------------------------------------
 // `claude --version` + `claude auth status` take a few seconds, so the pill is served from a cache that is
@@ -155,7 +157,7 @@ const projectDetail = (slug) => {
     storyboard: exists(path.join(d, "storyboard.png")),
     stills: existsSync(sbDir) ? readdirSync(sbDir).filter((f) => f.endsWith(".png")).sort().map((f) => `episodes/${slug}/storyboard/${f}`) : [],
     audio: store.readJson(path.join(d, "audio.json")),
-    clips: existsSync(path.join(d, "voice")) ? readdirSync(path.join(d, "voice")).filter((f) => /^line-\d+\.mp3$/.test(f)).sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5))).map((f) => `episodes/${slug}/voice/${f}`) : [],
+    clips: clipPaths(path.join(d, "voice")),
     outputs: { mp4: exists(r.mp4), phone: exists(r.phone), cover: exists(r.cover), mp4Mb: render.sizeMb(r.mp4), phoneMb: render.sizeMb(r.phone) },
     titles: store.readJson(r.titles),
     facts: store.readJson(path.join(d, "facts.json")),
@@ -175,7 +177,7 @@ const exampleDetail = () => {
     storyboard: existsSync(path.join(EXAMPLE_BUILD, "storyboard.png")) ? rel(path.join(EXAMPLE_BUILD, "storyboard.png")) : null,
     stills: existsSync(sb) ? readdirSync(sb).filter((f) => f.endsWith(".png")).sort().map((f) => rel(path.join(sb, f))) : [],
     audio: store.readJson(path.join(EXAMPLE_BUILD, "audio.json")),
-    clips: existsSync(path.join(EXAMPLE_BUILD, "voice")) ? readdirSync(path.join(EXAMPLE_BUILD, "voice")).filter((f) => /^line-\d+\.mp3$/.test(f)).sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5))).map((f) => rel(path.join(EXAMPLE_BUILD, "voice", f))) : [],
+    clips: clipPaths(path.join(EXAMPLE_BUILD, "voice")),
     outputs: { mp4: null, phone: existsSync(path.join(EXAMPLE_BUILD, "episode-phone.mp4")) ? rel(path.join(EXAMPLE_BUILD, "episode-phone.mp4")) : null, cover: existsSync(path.join(EXAMPLE_DIR, "cover.png")) ? rel(path.join(EXAMPLE_DIR, "cover.png")) : null },
     titles: store.readJson(path.join(ROOT, "app", "replays", "artifacts", "titles.json")),
   };
@@ -200,8 +202,7 @@ const skillList = () => {
 const assets = () => {
   const style = path.join(OUT, "style");
   const images = existsSync(style) ? readdirSync(style).filter((f) => f.endsWith(".png")).map((f) => ({ name: f.replace(/\.png$/, "").replace(/-/g, " "), path: `out/style/${f}` })) : [];
-  const exVoice = path.join(EXAMPLE_BUILD, "voice");
-  const clips = existsSync(exVoice) ? readdirSync(exVoice).filter((f) => f.endsWith(".mp3")).sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5))).map((f) => rel(path.join(exVoice, f))) : [];
+  const clips = clipPaths(path.join(EXAMPLE_BUILD, "voice"));
   const lines = store.readJson(path.join(ROOT, "app", "replays", "artifacts", "lines.json")) ?? [];
   return { images, clips: clips.map((p, i) => ({ path: p, text: lines[i]?.text ?? "" })), pack: { id: "winter-lake", name: "Winter Lake", scenes: ["lakeSide", "lakeCut", "lakeTop", "lakePrint"], cast: ["Eli", "his brother"] } };
 };
@@ -209,23 +210,23 @@ const assets = () => {
 // ---- routes ----------------------------------------------------------------------------------------
 const approve = async (slug, stage, body) => {
   const s = store.load(slug);
-  if (!s) throw Object.assign(new Error("No such project"), { status: 404 });
-  if (current()?.slug === slug) throw Object.assign(new Error("Wait for the running step to finish."), { status: 409 });
+  if (!s) throw httpError(404, "No such project");
+  if (current()?.slug === slug) throw httpError(409, "Wait for the running step to finish.");
   const st = s.stages[stage];
-  if (st.status !== "review" && !(stage === "script" && st.status === "approved")) throw Object.assign(new Error(`${store.STAGE_LABELS[stage]} is not ready to approve.`), { status: 409 });
+  if (st.status !== "review" && !(stage === "script" && st.status === "approved")) throw httpError(409, `${store.STAGE_LABELS[stage]} is not ready to approve.`);
   if (stage === "ideas") {
     const list = store.readJson(path.join(episodeDir(slug), "ideas.json"))?.ideas ?? [];
     const pick = Number(body.pick);
-    if (!Number.isInteger(pick) || !list[pick]) throw Object.assign(new Error("Pick one of the ideas."), { status: 400 });
+    if (!Number.isInteger(pick) || !list[pick]) throw httpError(400, "Pick one of the ideas.");
     store.update(slug, (x) => { x.pick = pick; x.title = String(list[pick].title).slice(0, 80); });
   }
   if (stage === "script" && body.lines) {
     const v = script.saveLines(slug, body.lines, s.length);
-    if (!v.saved) throw Object.assign(new Error(`Fix the script first: ${v.errors[0]}`), { status: 400, errors: v.errors });
+    if (!v.saved) throw httpError(400, `Fix the script first: ${v.errors[0]}`, { errors: v.errors });
   }
   if (stage === "script") {
     const ls = store.readJson(path.join(episodeDir(slug), "lines.json"));
-    if (!Array.isArray(ls) || !ls.length) throw Object.assign(new Error("Add at least one line to the script before approving it."), { status: 400 });
+    if (!Array.isArray(ls) || !ls.length) throw httpError(400, "Add at least one line to the script before approving it.");
   }
   store.update(slug, (x) => (x.stages[stage].status = "approved"));
   bus.send("stage", { slug, stage, status: "approved" });
@@ -293,7 +294,8 @@ const routes = async (req, res, url) => {
     if (!sub && m === "PATCH") return json(res, 200, boards.rename(id, (await readBody(req)).title));
     if (sub === "fragments" && !fid && m === "POST") {
       const b = await readBody(req);
-      if (safetyIssues(b.text).length) return fail(res, 400, `That touches ${safetyIssues(b.text).join(", ")}, which Studio does not make videos about.`, { code: "unsafe_topic" });
+      const bad = unsafeTopic(b.text);
+      if (bad) throw bad;
       return json(res, 200, boards.addFragment(id, b));
     }
     if (sub === "fragments" && fid && m === "DELETE") return json(res, 200, boards.removeFragment(id, fid));
@@ -310,7 +312,7 @@ const routes = async (req, res, url) => {
       const b = await readBody(req);
       const story = board().story;
       if (!story) return fail(res, 409, "Weave the board into a story first.");
-      if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
+      assertIdle();
       const topic = `${story.title}: ${story.logline}`.slice(0, 300);
       const seed = `${topic}\n${story.beats.map((x, i) => `${i + 1}. ${x.part}: ${x.text}`).join("\n")}`;
       const s = store.createProject({ topic, format: b.format, length: b.length, style: b.style, output: b.output, seed, mode: MODE });
@@ -325,11 +327,11 @@ const routes = async (req, res, url) => {
     const b = await readBody(req);
     const topic = String(b.topic ?? "").trim();
     if (!b.surprise && !topic) return fail(res, 400, "Type a topic or press Surprise me.");
-    if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
+    assertIdle();
     if (b.entry === "own") {
       if (!topic) return fail(res, 400, "Write what your video is about first.");
-      const bad = safetyIssues(topic);
-      if (bad.length) return fail(res, 400, `That touches ${bad.join(", ")}, which Studio does not make videos about.`, { code: "unsafe_topic" });
+      const bad = unsafeTopic(topic);
+      if (bad) throw bad;
     }
     const s = store.createProject({ topic, surprise: b.entry === "own" ? false : !!b.surprise, format: b.format, length: b.length, style: b.style, output: b.output, mode: MODE, entry: b.entry });
     bus.send("project", { slug: s.slug });
@@ -348,7 +350,7 @@ const routes = async (req, res, url) => {
     const slug = mm[1];
     const s = store.load(slug);
     if (!s) return fail(res, 404, "No such project");
-    if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
+    assertIdle();
     const b = await readBody(req);
     if (b.source !== "idea" && b.source !== "line") return fail(res, 400, 'source must be "idea" or "line".');
     let input;
@@ -378,35 +380,20 @@ const routes = async (req, res, url) => {
     const s = store.load(slug);
     if (!s) return fail(res, 404, "No such project");
     if (!["review", "approved"].includes(s.stages.shots.status)) return fail(res, 409, "The storyboard can be edited once it has been drawn.");
-    if (current()) return fail(res, 409, "Studio is busy with another step. Wait for it or stop it first.");
+    assertIdle();
     const b = await readBody(req);
     const lines = store.readJson(path.join(episodeDir(slug), "lines.json")) ?? [];
     let raw;
-    try { raw = (await loadShots(path.join(episodeDir(slug), "build", "shots.ts"))).SHOTS; } catch { return fail(res, 409, "This project has no saved shots yet."); }
+    try { raw = (await loadShots(buildShotsFile(slug))).SHOTS; } catch { return fail(res, 409, "This project has no saved shots yet."); }
     const v = await validateEdits(b.edits ?? null, { raw, lines });
     if (v.errors.length) return fail(res, 400, `Fix the edits first: ${v.errors[0]}`, { errors: v.errors });
     store.writeJson(editsFile(slug), v.edits);
-    store.writeJson(rawFile(slug), summarizeRaw(raw));
     store.update(slug, (x) => {
       if (x.stages.shots.status === "approved") store.resetFrom(x, "voice");
       x.stages.shots.status = "review";
     });
     bus.send("stage", { slug, stage: "shots", status: "review" });
-    startTask(slug, "edits", "shots", async (ctx) => {
-      checkout(slug);
-      writeFileSync(EDITS_JSON, JSON.stringify(v.edits) + "\n");
-      const applied = v.applied;
-      ctx.activity(`Rendering ${applied.length} stills with your edits`, { tool: "server" });
-      const sb = await storyboard(applied.length, { onProgress: (f, l) => ctx.progress(f, l), onCancel: ctx.onCancel });
-      ctx.checkAborted();
-      if (!sb.ok) throw Object.assign(new Error("The storyboard render failed."), { code: "storyboard", tail: sb.tail });
-      const ep = episodeDir(slug);
-      copyStoryboard(slug, sb.stills);
-      copyFileSync(path.join(OUT, "storyboard.png"), path.join(ep, "storyboard.png"));
-      store.writeJson(path.join(ep, "shots.json"), applied.map((x) => ({ id: x.id, line: x.line, scene: x.scene, weight: x.weight })));
-      store.update(slug, (x) => (x.stages.shots.shots = applied.length));
-      ctx.artifact("storyboard", rel(path.join(ep, "storyboard.png")), { stills: sb.tiles });
-    });
+    startTask(slug, "edits", "shots", (ctx) => shots.renderEdits(ctx, { edits: v.edits, applied: v.applied, raw }));
     return json(res, 202, { started: true, edits: v.edits, timing: timingFor(slug) });
   }
   if ((mm = /^\/api\/projects\/([a-z0-9-]+)\/stages\/(ideas|script|shots|voice|render)\/(run|approve|cancel)$/.exec(p)) && m === "POST") {
@@ -471,7 +458,9 @@ const server = http.createServer(async (req, res) => {
   } catch (e) {
     const status = e.status ?? 500;
     if (status >= 500) console.error(e);
-    if (!res.headersSent) fail(res, status, redact(e.message), e.errors ? { errors: e.errors } : {});
+    // Deliberate errors (httpError) keep their code and errors list for the UI; crashes don't leak internals.
+    const extra = e.status ? { ...(e.code ? { code: e.code } : {}), ...(e.errors ? { errors: e.errors } : {}) } : {};
+    if (!res.headersSent) fail(res, status, redact(e.message), extra);
   }
 });
 

@@ -206,8 +206,3 @@ export const run = async (ctx) => {
   ctx.activity(`Voice ready: ${lines.length} clips${reused ? ` (${reused} reused, not re-billed)` : ""}, ${total.toFixed(1)} s; src/audio.json updated`, { tool: "voice" });
   ctx.update((s) => (s.voice = { voiceId: provider === "elevenlabs" ? voiceId : null, provider, model, credit, tier, seconds: Math.round(total * 10) / 10 }));
 };
-
-export const clipsFor = (slug) => {
-  const dir = path.join(episodeDir(slug), "voice");
-  return existsSync(dir) ? readdirSync(dir).filter((f) => /^line-\d+\.mp3$/.test(f)).length : 0;
-};

@@ -66,4 +66,3 @@ const bin = {
 };
 export const remotion = (args, opts) => run(process.execPath, [bin.remotion, ...args], opts);
 export const tsc = (args, opts) => run(process.execPath, [bin.tsc, ...args], opts);
-export const BIN = bin;

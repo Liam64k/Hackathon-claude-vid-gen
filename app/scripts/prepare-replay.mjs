@@ -1,7 +1,7 @@
 // One-off/maintenance: snapshot the example episode and render its storyboard stills for replay mode.
 // Usage: node app/scripts/prepare-replay.mjs
 import path from "node:path";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { ensureExampleSnapshot, EXAMPLE_BUILD, owner, checkout } from "../lib/workspace.mjs";
 import { loadShots, validateShots } from "../lib/validate.mjs";
 import { storyboard } from "../lib/remotion-tasks.mjs";

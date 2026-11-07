@@ -2,7 +2,7 @@
 // pack catalog; the app then validates, typechecks (one --resume repair pass), renders the storyboard
 // stills + contact sheet, and saves the build to episodes/<slug>/build/.
 import path from "node:path";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { EDITS_JSON, OUT, SHOTS_TS, episodeDir, rel } from "../lib/paths.mjs";
 import { summarizeRaw } from "../lib/edits.mjs";
 import { readJson, writeJson } from "../lib/store.mjs";
@@ -53,7 +53,15 @@ const verify = async (ctx, lines) => {
   return errs;
 };
 
-export const copyStoryboard = (slug, stills) => {
+// What the UI reads about the shots: shots.json (one row per rendered shot) and, from the unedited
+// shots.ts, rawshots.json (the frame editor's base list).
+const saveShotFiles = (slug, applied, raw = applied) => {
+  const ep = episodeDir(slug);
+  writeJson(path.join(ep, "shots.json"), applied.map((s) => ({ id: s.id, line: s.line, scene: s.scene, weight: s.weight })));
+  writeJson(path.join(ep, "rawshots.json"), summarizeRaw(raw));
+};
+
+const copyStoryboard = (slug, stills) => {
   const dir = path.join(episodeDir(slug), "storyboard");
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -83,8 +91,7 @@ export const run = async (ctx) => {
     copyFileSync(path.join(EXAMPLE_BUILD, "shots.ts"), path.join(ep, "build", "shots.ts"));
     rmSync(path.join(ep, "build", "edits.json"), { force: true });
     const ex = await loadShots(path.join(EXAMPLE_BUILD, "shots.ts"));
-    writeJson(path.join(ep, "rawshots.json"), summarizeRaw(ex.SHOTS));
-    writeJson(path.join(ep, "shots.json"), ex.SHOTS.map((s) => ({ id: s.id, line: s.line, scene: s.scene, weight: s.weight })));
+    saveShotFiles(ctx.slug, ex.SHOTS);
     ctx.update((s) => (s.stages.shots.shots = ex.SHOTS.length));
     ctx.artifact("storyboard", rel(path.join(ep, "storyboard.png")), { stills: stills.length });
     return;
@@ -116,13 +123,18 @@ export const run = async (ctx) => {
   }
   saveCurrent();
   const shots = await loadShots();
-  writeJson(path.join(ep, "shots.json"), shots.SHOTS.map((s) => ({ id: s.id, line: s.line, scene: s.scene, weight: s.weight })));
-  writeJson(path.join(ep, "rawshots.json"), summarizeRaw(shots.SHOTS));
+  saveShotFiles(ctx.slug, shots.SHOTS);
   ctx.update((s) => (s.stages.shots.shots = shots.SHOTS.length));
   ctx.artifact("shots", "src/shots.ts");
 
   ctx.activity(`Rendering storyboard (${shots.SHOTS.length} stills)`, { tool: "server" });
-  const sb = await storyboard(shots.SHOTS.length, { onProgress: (v, l) => ctx.progress(v, l), onCancel: ctx.onCancel });
+  await renderStills(ctx, shots.SHOTS.length);
+};
+
+// Render the stills of what src/ holds now and file them under the project.
+const renderStills = async (ctx, count) => {
+  const ep = episodeDir(ctx.slug);
+  const sb = await storyboard(count, { onProgress: (v, l) => ctx.progress(v, l), onCancel: ctx.onCancel });
   ctx.checkAborted();
   if (!sb.ok) throw new StageError("storyboard", "The storyboard render failed.", { tail: sb.tail });
   copyStoryboard(ctx.slug, sb.stills);
@@ -130,5 +142,12 @@ export const run = async (ctx) => {
   ctx.artifact("storyboard", rel(path.join(ep, "storyboard.png")), { stills: sb.tiles });
 };
 
-export const hasStoryboard = (slug) => existsSync(path.join(episodeDir(slug), "storyboard.png"));
-export { SHOTS_TS };
+// Frame and timing edits from the storyboard editor (already validated): apply them in src/ and redraw.
+export const renderEdits = async (ctx, { edits, applied, raw }) => {
+  checkout(ctx.slug);
+  writeFileSync(EDITS_JSON, JSON.stringify(edits) + "\n");
+  ctx.activity(`Rendering ${applied.length} stills with your edits`, { tool: "server" });
+  await renderStills(ctx, applied.length);
+  saveShotFiles(ctx.slug, applied, raw);
+  ctx.update((s) => (s.stages.shots.shots = applied.length));
+};

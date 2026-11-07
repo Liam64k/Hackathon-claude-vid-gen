@@ -27,4 +27,3 @@ export const subscribe = (req, res) => {
 };
 
 export const recent = (filter = () => true, n = 80) => history.filter(filter).slice(-n);
-export const clientCount = () => clients.size;
