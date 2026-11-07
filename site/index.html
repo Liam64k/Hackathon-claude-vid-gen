@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Studio Gen: one sentence in, a narrated short video out</title>
+  <meta name="description" content="A free app that turns one sentence into a narrated vertical video: ideas, script, storyboard, voice and render, on your own computer. You approve each step." />
+  <meta name="theme-color" content="#f3f2fa" />
+  <meta name="color-scheme" content="light" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+  <!-- Social cards: og:image is absolute (served from the public GitHub repo until a domain exists). -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Studio Gen" />
+  <meta property="og:title" content="Studio Gen: one sentence in, a finished short out" />
+  <meta property="og:description" content="A local app that writes, storyboards, voices and renders a narrated vertical video, with your approval at every step." />
+  <meta property="og:image" content="https://raw.githubusercontent.com/Liam64k/Hackathon-claude-vid-gen/main/site/assets/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Studio Gen: one sentence in, a finished short out." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Studio Gen: one sentence in, a finished short out" />
+  <meta name="twitter:description" content="Ideas, script, storyboard, voice and render, on your own machine. You approve every step." />
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/Liam64k/Hackathon-claude-vid-gen/main/site/assets/og.jpg" />
+  <meta name="twitter:image:alt" content="Studio Gen: one sentence in, a finished short out." />
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/bricolage-grotesque.woff2" crossorigin />
+  <link rel="preload" as="image" href="/assets/app/storyboard.jpg" fetchpriority="high" media="(min-width: 921px)" />
+  <link rel="stylesheet" href="/styles.css" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Studio Gen",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Windows",
+    "description": "A local app that turns a topic into a finished, narrated vertical video: ideas, script, storyboard, voice and render, with your approval at every step.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "downloadUrl": "https://github.com/Liam64k/Hackathon-claude-vid-gen",
+    "codeRepository": "https://github.com/Liam64k/Hackathon-claude-vid-gen",
+    "softwareRequirements": "Node.js 20+, Claude Code (signed in). ElevenLabs API key optional.",
+    "image": "https://raw.githubusercontent.com/Liam64k/Hackathon-claude-vid-gen/main/site/assets/og.jpg"
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <!-- ===================================================== NAV -->
+  <header class="nav" id="top">
+    <a class="brand" href="#top" aria-label="Studio Gen, back to top">
+      <span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7.2 L17.4 12 L9 16.8 Z" fill="currentColor"/></svg></span>
+      <span>Studio <em>Gen</em></span>
+    </a>
+    <nav class="nav__links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#storyboard">Storyboard</a>
+      <a href="#yours">Privacy</a>
+      <a href="#start">Quick start</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn--ghost nav__cta" href="https://github.com/Liam64k/Hackathon-claude-vid-gen" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </header>
+
+  <main id="main">
+    <!-- ===================================================== HERO (marquee) -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero__bg" aria-hidden="true"><i class="blob blob--a"></i><i class="blob blob--b"></i><i class="blob blob--c"></i></div>
+
+      <div class="hero__copy">
+        <p class="pill reveal" style="--d:0"><span class="pill__dot" aria-hidden="true"></span>Free · runs on your computer<span class="pill__more"> · you approve every step</span></p>
+        <h1 id="hero-title" class="hero__title">
+          <span class="sr">Studio Gen: </span>
+          <span class="line"><span class="w" style="--i:0">One</span> <span class="w" style="--i:1">sentence</span> <span class="w hl" style="--i:2">in.</span></span>
+          <span class="line"><span class="w" style="--i:3">A</span> <span class="w" style="--i:4">finished</span> <span class="w hl hl--serif" style="--i:5">short</span> <span class="w" style="--i:6">out.</span></span>
+        </h1>
+        <p class="hero__lede reveal" style="--d:6">
+          Studio Gen writes the ideas, the script and the storyboard, voices every line and renders the video,
+          using <em>your own</em> Claude Code on <em>your</em> computer. You just decide and approve.
+        </p>
+        <div class="hero__ctas reveal" style="--d:7">
+          <a class="dl" href="https://github.com/Liam64k/Hackathon-claude-vid-gen" target="_blank" rel="noopener" data-magnetic>
+            <span class="dl__ring" aria-hidden="true"></span>
+            <span class="dl__inner">
+              <svg class="dl__crack" viewBox="0 0 400 100" aria-hidden="true" preserveAspectRatio="none"><path d="M200 50 L150 32 L118 38 L78 10 M150 32 L140 6 M200 50 L252 70 L292 64 L334 94 M252 70 L262 96 M200 50 L238 22 L280 26 L322 4 M200 50 L160 76 L116 72 L70 98" /></svg>
+              <svg class="dl__gh" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              <span class="dl__text"><span class="dl__label">Download on GitHub</span><span class="dl__sub">Free · tested on Windows 11</span></span>
+              <svg class="dl__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </a>
+          <a class="btn btn--quiet" href="#how">See how it works <span aria-hidden="true">↓</span></a>
+        </div>
+        <dl class="facts reveal" style="--d:8">
+          <div><dt>5</dt><dd>steps you approve</dd></div>
+          <div><dt>~17<small> min</small></dt><dd>compute time, topic to MP4</dd></div>
+          <div><dt>0</dt><dd>API keys needed for Claude</dd></div>
+        </dl>
+      </div>
+
+      <div class="hero__stage reveal" style="--d:4" data-tilt>
+        <figure class="mock">
+          <div class="mock__bar" aria-hidden="true"><i></i><i></i><i></i><span>127.0.0.1:4317</span></div>
+          <img src="/assets/app/storyboard.jpg" alt="The Studio Gen app showing the storyboard step: one rendered frame per shot of the video 'Don't Run to Him'" width="1440" height="900" fetchpriority="high" decoding="async" />
+        </figure>
+        <button class="motion" type="button" aria-pressed="false" data-motion><span class="motion__icon" aria-hidden="true"></span><span class="motion__label">Pause motion</span></button>
+        <figure class="phone" aria-label="A clip from a video made with Studio Gen">
+          <video class="phone__video" autoplay muted loop playsinline preload="metadata" poster="/assets/hero-poster.jpg" aria-label="Clip from 'Don't Run to Him', a cold-water safety short made with Studio Gen">
+            <source src="/assets/hero.mp4" type="video/mp4" />
+          </video>
+          <figcaption class="sr">“Don't Run to Him”, made end to end with Studio Gen in one live run.</figcaption>
+        </figure>
+        <div class="chip chip--a" aria-hidden="true"><span class="chip__dot"></span>Claude connected · Pro</div>
+        <div class="chip chip--b" aria-hidden="true"><span class="chip__rec"></span>REC <span data-timecode>00:00:00</span></div>
+        <div class="chip chip--c" aria-hidden="true">✓ Step 3 · Storyboard</div>
+        <div class="chip chip--d card" aria-hidden="true"><span class="card__k">Idea · 9/9</span><span class="card__v">“If your brother falls through the ice, don't run to him.”</span></div>
+      </div>
+    </section>
+
+    <!-- ===================================================== TICKER -->
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker__track">
+        <span>17 narration lines</span><span>40 shots</span><span>1080 × 1920 · 30 fps</span><span>TikTok · Shorts · Reels · YouTube</span><span>20–180 s, your call</span><span>127.0.0.1 only</span><span>your Claude login, never copied</span><span>replay mode works offline</span>
+        <span>17 narration lines</span><span>40 shots</span><span>1080 × 1920 · 30 fps</span><span>TikTok · Shorts · Reels · YouTube</span><span>20–180 s, your call</span><span>127.0.0.1 only</span><span>your Claude login, never copied</span><span>replay mode works offline</span>
+      </div>
+    </div>
+
+    <!-- ===================================================== HOW -->
+    <section class="how" id="how" aria-labelledby="how-title">
+      <header class="section-head">
+        <p class="kicker">How it works</p>
+        <h2 id="how-title">Five steps. <em>You</em> call every cut.</h2>
+        <p class="section-lede">Each step stops and waits for you. Edit a line, pick another idea, rebuild a shot. Nothing moves on until you say so.</p>
+      </header>
+      <ol class="strip" role="list">
+        <li class="frame" data-reveal>
+          <div class="frame__code"><span>01 · Idea</span><span>~2 min</span></div>
+          <div class="frame__img"><img src="/assets/frames/shot-00.jpg" alt="Storyboard frame: a bearded man in the ice hole, caption 'If your brother falls through'" width="270" height="480" loading="lazy" decoding="async" /></div>
+          <h3>Pick an idea</h3>
+          <p>Type a topic or roll the dice. Five ideas arrive one by one, each with a hook, a twist and the real fact behind it, marked “verify”.</p>
+        </li>
+        <li class="frame" data-reveal>
+          <div class="frame__code"><span>02 · Script</span><span>~4 min</span></div>
+          <div class="frame__img"><img src="/assets/frames/shot-06.jpg" alt="Storyboard frame: Eli holds his phone and ice picks, caption 'Picks'" width="270" height="480" loading="lazy" decoding="async" /></div>
+          <h3>Approve the script</h3>
+          <p>Narration paced for the length you chose, numbers spelled out for the voice. Click any line to rewrite it; the coloured words become the caption highlights.</p>
+        </li>
+        <li class="frame" data-reveal>
+          <div class="frame__code"><span>03 · Storyboard</span><span>~5 min</span></div>
+          <div class="frame__img"><img src="/assets/frames/shot-13.jpg" alt="Storyboard frame: the 1-10-1 cold-water rule card" width="270" height="480" loading="lazy" decoding="async" /></div>
+          <h3>Check the storyboard</h3>
+          <p>One real frame per shot, rendered from the scene code, so you see the actual video before a single word is voiced.</p>
+        </li>
+        <li class="frame" data-reveal>
+          <div class="frame__code"><span>04 · Voice</span><span>~1 min</span></div>
+          <div class="frame__img"><img src="/assets/frames/shot-24.jpg" alt="Storyboard frame: Eli lying flat on the ice, reaching toward the hole" width="270" height="480" loading="lazy" decoding="async" /></div>
+          <h3>Hear the voice</h3>
+          <p>With an ElevenLabs key, every line is voiced and stitched to its neighbours, and the cut re-times itself to the real voice. No key yet? A labelled placeholder voice keeps you moving.</p>
+        </li>
+        <li class="frame" data-reveal>
+          <div class="frame__code"><span>05 · Render</span><span>~4 min</span></div>
+          <div class="frame__img"><img src="/assets/frames/shot-39.jpg" alt="Storyboard frame: the 'Part 2' end card on the frozen lake at night" width="270" height="480" loading="lazy" decoding="async" /></div>
+          <h3>Download the short</h3>
+          <p>A full-quality MP4, a lighter phone copy (24 MB in our run), a cover frame and three titles of 60 characters or fewer, ready to post.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ===================================================== STORYBOARD WALL -->
+    <section class="wall" id="storyboard" aria-labelledby="wall-title">
+      <div class="wall__copy">
+        <p class="kicker">Real output, not a mock-up</p>
+        <h2 id="wall-title">Every frame here came out of <em>one</em> run.</h2>
+        <p class="section-lede">Topic: <q>How to help a friend who fell through the ice.</q> Studio Gen wrote <strong>“Don't Run to Him”</strong>: 250 words, 17 lines and 40 shots, then rendered a 1:49 video. This is its storyboard, unedited.</p>
+        <ul class="ledger" role="list">
+          <li><span>Ideas</span><span>1 min 48 s</span></li>
+          <li><span>Script + beat board</span><span>4 min 20 s</span></li>
+          <li><span>Shots + 40-still storyboard</span><span>5 min 30 s</span></li>
+          <li><span>Voice (17 clips, placeholder)</span><span>46 s</span></li>
+          <li><span>Render + phone copy + titles</span><span>4 min 18 s</span></li>
+        </ul>
+        <p class="fine">Measured on Windows 11 with a Claude Pro plan and the placeholder voice (no ElevenLabs key); ElevenLabs timing not measured. Your review time is extra.</p>
+      </div>
+      <div class="wall__grid" role="list" aria-label="Storyboard frames from 'Don't Run to Him'">
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-01.jpg" alt="The narrator with a red dashed 'mistake' ghost and a 'Don't run' stamp" width="270" height="480" loading="lazy" decoding="async" /><figcaption>1b</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-04.jpg" alt="The brother crashes through the ice, caption 'One crack, and he was in'" width="270" height="480" loading="lazy" decoding="async" /><figcaption>3a</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-07.jpg" alt="Close-up of the narrator, an 'Instinct' callout" width="270" height="480" loading="lazy" decoding="async" /><figcaption>4a</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-09.jpg" alt="Map view with the sprint path, caption 'Sprint out and grab him'" width="270" height="480" loading="lazy" decoding="async" /><figcaption>4b</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-10.jpg" alt="Freeze-frame in blue: 'Weight on two boot prints'" width="270" height="480" loading="lazy" decoding="async" /><figcaption>5a</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-19.jpg" alt="'Call nine-one-one' with the steps on screen" width="270" height="480" loading="lazy" decoding="async" /><figcaption>9a</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-27.jpg" alt="Eli pushes his ice picks across to his brother" width="270" height="480" loading="lazy" decoding="async" /><figcaption>11b</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-30.jpg" alt="A red X over 'Don't go in after him'" width="270" height="480" loading="lazy" decoding="async" /><figcaption>12a</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-34.jpg" alt="Kick legs up flat, with an angle meter" width="270" height="480" loading="lazy" decoding="async" /><figcaption>13b</figcaption></figure>
+        <figure role="listitem" data-reveal><img src="/assets/frames/shot-37.jpg" alt="'Don't stand' stamp as the brother slides out" width="270" height="480" loading="lazy" decoding="async" /><figcaption>15a</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ===================================================== PRODUCT -->
+    <section class="product" aria-labelledby="product-title">
+      <header class="section-head section-head--center">
+        <p class="kicker">The app</p>
+        <h2 id="product-title">A calm studio, <em>not</em> a chat box.</h2>
+        <p class="section-lede">No prompts to write, no settings to tune. The skills, the prompts and the model choices are built in, and a live activity feed shows what Claude reads, writes and runs.</p>
+      </header>
+      <div class="shots" data-tabs>
+        <div class="shots__tabs" role="tablist" aria-label="App screens">
+          <button role="tab" id="tab-home" aria-controls="panel-shots" aria-selected="false" tabindex="-1" data-src="/assets/app/home.jpg" data-alt="Studio Gen set-up screen: what's your video about?">Set up</button>
+          <button role="tab" id="tab-look" aria-controls="panel-shots" aria-selected="false" tabindex="-1" data-src="/assets/app/look.jpg" data-alt="Choosing the look and the output size">Look &amp; size</button>
+          <button role="tab" id="tab-script" aria-controls="panel-shots" aria-selected="false" tabindex="-1" data-src="/assets/app/script.jpg" data-alt="The script editor with narration lines">Script</button>
+          <button role="tab" id="tab-render" aria-controls="panel-shots" aria-selected="true" data-src="/assets/app/render.jpg" data-alt="The finished video with downloads and titles">Render</button>
+        </div>
+        <div class="browser" id="panel-shots" role="tabpanel" aria-labelledby="tab-render" tabindex="0">
+          <div class="browser__bar" aria-hidden="true"><i></i><i></i><i></i><span>127.0.0.1:4317</span></div>
+          <img class="browser__img" src="/assets/app/render.jpg" alt="The finished video with downloads and titles" width="1440" height="900" loading="lazy" decoding="async" />
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== YOURS -->
+    <section class="yours" id="yours" aria-labelledby="yours-title">
+      <div class="yours__copy">
+        <p class="kicker">Your machine. Your login.</p>
+        <h2 id="yours-title">It talks only to the services <em>you</em> connect.</h2>
+        <ul class="guards" role="list">
+          <li><b>Runs on 127.0.0.1 only.</b> A private link with a one-time token; nobody else on the network can open it.</li>
+          <li><b>Uses your own Claude Code.</b> Studio Gen drives the copy that is already signed in. It never reads, copies or stores your login or tokens.</li>
+          <li><b>Runs on your plan's usage.</b> No API key needed: runs count toward your Claude plan's usage limit, and the cost meter is an estimate, not a charge.</li>
+          <li><b>Keys stay in memory.</b> Paste an ElevenLabs key and it is never written to disk.</li>
+          <li><b>Safe advice only.</b> Topics and scripts are checked for unsafe content, and every fact is flagged “verify”.</li>
+        </ul>
+      </div>
+      <div class="term" role="img" aria-label="Terminal running npm start: Studio is running in live mode on 127.0.0.1 port 4317">
+        <div class="term__bar" aria-hidden="true"><i></i><i></i><i></i><span>~/studio-gen</span></div>
+        <pre class="term__body" aria-hidden="true"><code><span class="t-p">$</span> npm start
+
+  <span class="t-ok">Studio is running</span> (live mode)
+  Open: <span class="t-link">http://127.0.0.1:4317/?t=••••••••••••</span>
+  Local only (127.0.0.1). Keep this link private.
+
+<span class="t-dim">› Claude started (opus)</span>
+<span class="t-dim">› Reading skill: survival-short</span>
+<span class="t-dim">› Claude is weighing premises, hooks and twists</span>
+<span class="t-hl">✦ Idea 1: Don't Run to Him</span>
+<span class="t-hl">✦ Idea 2: The Hour After</span><span class="caret" aria-hidden="true"></span></code></pre>
+      </div>
+    </section>
+
+    <!-- ===================================================== START -->
+    <section class="start" id="start" aria-labelledby="start-title">
+      <header class="section-head">
+        <p class="kicker">Quick start</p>
+        <h2 id="start-title">Running in <em>five</em> minutes.</h2>
+        <p class="section-lede">You need <strong>Node.js 20+</strong> and <strong>Claude Code</strong> signed in to your Claude account. An ElevenLabs key is optional.</p>
+      </header>
+      <ol class="steps" role="list">
+        <li class="step" data-reveal>
+          <span class="step__n" aria-hidden="true">1</span>
+          <div class="step__body">
+            <h3>Get the code</h3>
+            <div class="code"><code>git clone https://github.com/Liam64k/Hackathon-claude-vid-gen.git</code><button class="copy" type="button" data-copy="git clone https://github.com/Liam64k/Hackathon-claude-vid-gen.git" aria-label="Copy the git clone command">Copy</button></div>
+            <div class="code"><code>cd Hackathon-claude-vid-gen</code><button class="copy" type="button" data-copy="cd Hackathon-claude-vid-gen" aria-label="Copy the cd command">Copy</button></div>
+            <p>Or download the ZIP from GitHub (green “Code” button) and open a terminal in that folder.</p>
+          </div>
+        </li>
+        <li class="step" data-reveal>
+          <span class="step__n" aria-hidden="true">2</span>
+          <div class="step__body">
+            <h3>Install, once</h3>
+            <div class="code"><code>npm ci --ignore-scripts</code><button class="copy" type="button" data-copy="npm ci --ignore-scripts" aria-label="Copy the npm ci command">Copy</button></div>
+            <div class="code"><code>npx remotion browser ensure</code><button class="copy" type="button" data-copy="npx remotion browser ensure" aria-label="Copy the remotion browser ensure command">Copy</button></div>
+            <p>Installs the packages without running install scripts, then downloads the headless browser that renders the video.</p>
+          </div>
+        </li>
+        <li class="step" data-reveal>
+          <span class="step__n" aria-hidden="true">3</span>
+          <div class="step__body">
+            <h3>Check your setup</h3>
+            <div class="code"><code>npm run doctor</code><button class="copy" type="button" data-copy="npm run doctor" aria-label="Copy the npm run doctor command">Copy</button></div>
+            <p>A pass/fail table that tells you exactly how to fix anything missing.</p>
+          </div>
+        </li>
+        <li class="step" data-reveal>
+          <span class="step__n" aria-hidden="true">4</span>
+          <div class="step__body">
+            <h3>Start the studio</h3>
+            <div class="code"><code>npm start</code><button class="copy" type="button" data-copy="npm start" aria-label="Copy the npm start command">Copy</button></div>
+            <p>On Windows you can just double-click <span class="mono">Start Studio.cmd</span>. No Claude account handy? <span class="mono">npm run demo</span> plays the whole flow from recorded runs, offline and free.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ===================================================== FAQ -->
+    <section class="faq" id="faq" aria-labelledby="faq-title">
+      <header class="section-head">
+        <p class="kicker">Questions</p>
+        <h2 id="faq-title">Before you <em>start</em>.</h2>
+      </header>
+      <div class="faq__list">
+        <details>
+          <summary>Does it cost anything?</summary>
+          <p>Studio Gen is free. It runs on the Claude plan you already have: each run counts toward your plan's usage limit, not your card. The dollar figure in the app is the API-equivalent estimate that Claude reports, labelled “not billed”. A full video used about $2.60 of that estimate in our test (plus $0.24 for the optional fact check). ElevenLabs has a free plan; see the next question for its rules.</p>
+        </details>
+        <details>
+          <summary>Can I post the videos?</summary>
+          <p>Yes, they are yours. Check the facts marked “verify” before you publish. If you use ElevenLabs' free plan, it is non-commercial and published videos must credit “elevenlabs.io” in the title (check ElevenLabs' current terms); Studio Gen adds that credit to the titles it writes for you.</p>
+        </details>
+        <details>
+          <summary>What kinds of videos can it make?</summary>
+          <p>Narrated survival and “what would you do?” shorts, from 20 to 180 seconds, for TikTok, Shorts, Reels, YouTube and square or 4:5 feeds. The first art pack, Winter Lake, draws the scenes; more packs and looks are on the way.</p>
+        </details>
+        <details>
+          <summary>Is this a website I sign up for?</summary>
+          <p>No. Studio Gen is an app you download and run on your own computer. There is no account, no server of ours and no analytics or tracking. This page is the only part that lives on the web, and it loads nothing from third parties.</p>
+        </details>
+        <details>
+          <summary>Which computers does it run on?</summary>
+          <p>It was built and tested end to end on Windows 11 with Node.js 20 or newer. macOS and Linux paths are written but untested so far. Plan for about 2 GB of free disk (packages plus Remotion's ~120 MB headless browser and your renders).</p>
+        </details>
+        <details>
+          <summary>What if I hit my usage limit mid-video?</summary>
+          <p>The step pauses and keeps everything it has done so far. Resume it after your limit resets. Voice clips that are already made are reused, never billed twice.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===================================================== FINAL CTA -->
+    <section class="final" aria-labelledby="final-title">
+      <div class="final__band">
+        <svg class="final__crack" viewBox="0 0 1200 400" preserveAspectRatio="none" aria-hidden="true"><path d="M600 200 L520 150 L470 160 L400 90 L330 100 L250 30 M520 150 L500 80 M600 200 L690 250 L760 236 L830 320 L920 310 L1010 390 M690 250 L700 330 M600 200 L650 120 L730 110 L800 40 M600 200 L540 260 L460 254 L380 330 L300 324 L210 392 M730 110 L760 170 M460 254 L440 190" /></svg>
+        <p class="kicker kicker--light">Ready when you are</p>
+        <h2 id="final-title">Your first short is <em>one sentence</em> away.</h2>
+        <a class="dl dl--xl dl--light" href="https://github.com/Liam64k/Hackathon-claude-vid-gen" target="_blank" rel="noopener" data-magnetic>
+          <span class="dl__ring" aria-hidden="true"></span>
+          <span class="dl__inner">
+            <svg class="dl__gh" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            <span class="dl__text"><span class="dl__label">Download on GitHub</span><span class="dl__sub">Free · source on GitHub</span></span>
+            <svg class="dl__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot__brand">
+      <span class="brand"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7.2 L17.4 12 L9 16.8 Z" fill="currentColor"/></svg></span><span>Studio <em>Gen</em></span></span>
+      <p>A non-commercial hackathon project. Made with Remotion.</p>
+    </div>
+    <p class="foot__legal">Studio Gen is not affiliated with, endorsed by or sponsored by Anthropic or ElevenLabs. “Claude” and “Claude Code” are Anthropic's products, and “ElevenLabs” is ElevenLabs' product; they are named here only as services you connect with your own account. Survival advice in the videos is general information, not professional guidance.</p>
+    <nav class="foot__links" aria-label="Footer">
+      <a href="https://github.com/Liam64k/Hackathon-claude-vid-gen" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Liam64k/Hackathon-claude-vid-gen#readme" target="_blank" rel="noopener">README</a>
+      <a href="#top">Back to top ↑</a>
+    </nav>
+  </footer>
+
+  <p class="sr" id="copy-status" aria-live="polite"></p>
+  <script src="/main.js" defer></script>
+</body>
+</html>
