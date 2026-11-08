@@ -769,7 +769,7 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
 .chead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .chead h2 { margin: 0; font-size: 17px; font-weight: 600; }
 .cbody { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: start; }
-.fig { background: var(--primary-tint); border-radius: 12px; padding: 8px 4px 0; align-self: stretch; display: flex; align-items: flex-end; justify-content: center; min-height: 140px; overflow: hidden; }
+.fig { background: var(--primary-tint); border-radius: 12px; padding: 8px 4px 0; align-self: start; position: sticky; top: 8px; display: flex; align-items: flex-end; justify-content: center; min-height: 140px; overflow: hidden; }
 .fig svg { width: 100%; height: auto; max-width: 150px; display: block; }
 .cform { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .crow { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 8px; align-items: center; }

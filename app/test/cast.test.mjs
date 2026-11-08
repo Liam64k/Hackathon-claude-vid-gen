@@ -63,7 +63,7 @@ test("a project without a cast gets a random one", async () => {
   const r = await call("/api/projects", "POST", { topic: "zombie outbreak day one" });
   made.push(r.body.state.slug);
   assert.ok(r.body.state.cast.lead.name);
-  assert.equal(r.body.state.castMode, "random");
+  assert.equal(r.body.state.castMode, "claude"); // default for new projects
   assert.equal(r.body.castResolved.theme, "nightCity");
   await idle();
 });
@@ -131,10 +131,31 @@ test("roles are kept, checked for length and safety, and reach the script prompt
   assert.match(castText({ cast: ok.cast }), /Ray, the building's janitor, 58/);
 });
 
-test("the casting prompt makes Claude read the skills' casting rules", async () => {
-  const { castPrompt, CAST_SKILL_FILES, CAST_SCHEMA } = await import("../stages/cast.mjs");
-  const p = castPrompt({ topic: "blackout in the city", theme: "auto" });
-  for (const f of CAST_SKILL_FILES) assert.ok(p.includes(f.split(" ")[0]));
-  assert.match(p, /signature coat colour/);
-  assert.ok(CAST_SCHEMA.properties.lead.required.includes("role"));
+test("the casting prompt derives people from the story; schema carries the new look fields", async () => {
+  const { castPrompt, CAST_SCHEMA } = await import("../stages/cast.mjs");
+  const p = castPrompt({ topic: "blackout in the city", theme: "auto", idea: { title: "Night shift", premise: "a nurse walks home" } });
+  assert.match(p, /scrubs/);
+  assert.match(p, /only one person/);
+  const req = CAST_SCHEMA.properties.lead.required;
+  for (const k of ["role", "outfit", "hat", "glasses", "backpack"]) assert.ok(req.includes(k), k);
+});
+
+test("castFromClaude accepts the new fields and rejects bad output; castWithClaude falls back", async () => {
+  const { castFromClaude, castWithClaude } = await import("../stages/cast.mjs");
+  const cd = await import("../lib/cast-data.mjs");
+  const f = (o) => ({ name: "Maya", role: "night-shift nurse, 34", age: "adult", outfit: cd.OUTFITS?.includes("scrubs") ? "scrubs" : "jacket", hat: "none", hairStyle: "bun", glasses: true, backpack: false, skin: "olive", hair: "black", coat: "teal", facial: "none", build: "average", ...o });
+  const ok = castFromClaude({ lead: f(), second: f({ name: "Theo", role: "teen", age: "teen", coat: "coral", backpack: true }), theme: "nightCity", particles: "none", why: "x" });
+  assert.ok(ok, "valid cast accepted");
+  assert.equal(ok.lead.name, "Maya");
+  if (cd.OUTFITS) assert.equal(ok.lead.look.outfit, "scrubs");
+  assert.equal(castFromClaude({ lead: f({ skin: "green" }), second: f({ name: "Theo" }), theme: "nightCity", particles: "none" }), null);
+  assert.equal(castFromClaude("nope"), null);
+  const eng = await import("../engine/claude.mjs");
+  const prev = eng.claudeCli.run;
+  eng.claudeCli.run = () => ({ cancel() {}, events: (async function* () { yield { type: "result", ok: true, cost: 0, structured: { lead: { name: "" } } }; })() });
+  try {
+    const got = await castWithClaude({ topic: "a kid lost at the mall" }, { mode: "live", seed: "s1" });
+    assert.equal(got.fallback, true);
+    assert.ok(got.lead.name && got.second.name);
+  } finally { eng.claudeCli.run = prev; }
 });

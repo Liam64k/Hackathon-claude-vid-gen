@@ -37,9 +37,13 @@ export const COATS = [
   { id: "teal", label: "teal", coat: "#1F8A84", trim: "#F6E3B4", pants: "#3A3530", boots: "#5A3E2B", gloves: "#F6E3B4", hatColor: "#E86A3A", hatBand: "#F6E3B4" },
   { id: "pink", label: "pink", coat: "#E66FA0", trim: "#FFF0F4", pants: "#35324A", boots: "#3B2B22", gloves: "#35324A", hatColor: "#35324A", hatBand: "#FFF0F4" },
 ];
-export const HATS = ["beanie", "trapper", "cap", "hood", "none"];
+export const HATS = ["beanie", "trapper", "cap", "hood", "helmet", "hardhat", "none"];
 export const FACIAL = ["none", "stubble", "beard"];
 export const COAT_KINDS = ["puffy", "parka", "jacket"];
+// What the person wears. puffy/parka/jacket are the winter coats; the rest are everyday and work clothes.
+export const OUTFITS = ["puffy", "parka", "jacket", "tshirt", "hoodie", "scrubs", "suit", "hivis", "uniform", "apron", "dress"];
+export const HAIR_STYLES = ["short", "long", "bun", "curly", "buzz", "bald"];
+export const AGES = ["kid", "teen", "adult", "elder"];
 export const BUILDS = ["short", "average", "tall", "broad"];
 export const NAMES = [
   "Sam", "Maya", "Jake", "Rosa", "Theo", "Nina", "Omar", "Lucy", "Ben", "Ava",
@@ -82,23 +86,41 @@ const contrasts = (a, b) => {
   return dh > 60 || dl > 0.35;
 };
 
-function makeLook(rnd, coat) {
+const WINTER_HATS = ["beanie", "trapper", "cap", "hood", "none"];
+const GREY_HAIR = HAIR.filter((h) => h.id === "grey" || h.id === "white").map((h) => h.hex);
+const OUTFIT_HATS = { hivis: ["hardhat", "hardhat", "none", "cap"], uniform: ["cap", "cap", "none"], suit: ["none"], scrubs: ["none", "none", "cap"], dress: ["none"], apron: ["none", "cap"], hoodie: ["none", "none", "cap", "hood"], tshirt: ["none", "none", "cap", "helmet"] };
+
+function makeLook(rnd, coat, winter) {
   const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
   const r = rnd();
-  return {
+  const a = rnd();
+  const age = a < 0.6 ? "adult" : a < 0.75 ? "elder" : a < 0.88 ? "teen" : "kid";
+  const outfit = winter ? pick(COAT_KINDS) : pick(OUTFITS.filter((o) => !COAT_KINDS.includes(o)));
+  const look = {
     skin: pick(SKIN).hex,
     hair: pick(HAIR).hex,
     coat: coat.coat, trim: coat.trim, pants: coat.pants, boots: coat.boots,
     gloves: coat.gloves, hatColor: coat.hatColor, hatBand: coat.hatBand,
-    coatKind: pick(COAT_KINDS),
-    hat: pick(HATS),
+    outfit,
+    coatKind: COAT_KINDS.includes(outfit) ? outfit : "jacket",
+    hat: winter ? pick(WINTER_HATS) : pick(OUTFIT_HATS[outfit] ?? ["none"]),
+    hairStyle: pick(HAIR_STYLES),
+    age,
+    glasses: rnd() < 0.2,
+    backpack: rnd() < (age === "kid" || age === "teen" ? 0.55 : 0.15),
     facial: r < 0.6 ? "none" : r < 0.82 ? "stubble" : "beard",
     build: pick(BUILDS),
   };
+  if (age === "kid") look.facial = "none";
+  if (age === "elder") { look.hair = pick(GREY_HAIR); if (look.hairStyle === "bun" || look.hairStyle === "curly") look.hairStyle = "short"; }
+  if (outfit === "dress" && look.facial !== "none") look.facial = "none";
+  return look;
 }
 
-export function randomCast(seed) {
+// randomCast(seed, { winter }): winter outfits (puffy/parka/jacket + woolly hats) ~25% of the time unless told.
+export function randomCast(seed, opts = {}) {
   const rnd = mulberry32(seedNum(seed));
+  const winter = typeof opts.winter === "boolean" ? opts.winter : rnd() < 0.25;
   const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
   const c1 = pick(COATS);
   const ok = COATS.filter((c) => c.id !== c1.id && contrasts(c.coat, c1.coat));
@@ -106,11 +128,17 @@ export function randomCast(seed) {
   const n1 = pick(NAMES);
   const names2 = NAMES.filter((n) => n !== n1 && n[0] !== n1[0]);
   const n2 = pick(names2);
-  const lead = { name: n1, look: makeLook(rnd, c1) };
-  const second = { name: n2, look: makeLook(rnd, c2) };
+  const lead = { name: n1, look: makeLook(rnd, c1, winter) };
+  const second = { name: n2, look: makeLook(rnd, c2, winter) };
   // Make silhouettes differ: avoid same build and same hat.
   if (second.look.build === lead.look.build) second.look.build = BUILDS[(BUILDS.indexOf(lead.look.build) + 2) % BUILDS.length];
-  if (second.look.hat === lead.look.hat) second.look.hat = HATS[(HATS.indexOf(lead.look.hat) + 1) % HATS.length];
+  if (second.look.hat === lead.look.hat && lead.look.hat !== "none") second.look.hat = "none";
+  if (second.look.outfit === lead.look.outfit) {
+    const pool = (winter ? COAT_KINDS : OUTFITS.filter((o) => !COAT_KINDS.includes(o)));
+    second.look.outfit = pool[(pool.indexOf(lead.look.outfit) + 1) % pool.length];
+    second.look.coatKind = COAT_KINDS.includes(second.look.outfit) ? second.look.outfit : "jacket";
+    second.look.hat = winter ? second.look.hat : (OUTFIT_HATS[second.look.outfit] ?? ["none"])[0];
+  }
   return { lead, second };
 }
 
@@ -125,12 +153,21 @@ const colorWord = (hex) => {
   return (l < 0.3 ? "dark " : "") + names.find(([m]) => h <= m)[1];
 };
 
+const OUTFIT_WORD = { puffy: "puffy jacket", parka: "parka", jacket: "jacket", tshirt: "t-shirt", hoodie: "hoodie", scrubs: "scrubs", suit: "suit and tie", hivis: "hi-vis vest", uniform: "uniform", apron: "apron", dress: "knee-length dress" };
+
 export function describeLook(look) {
-  const parts = [`${coatName(look.coat)} ${look.coatKind ?? "coat"}`];
-  if (look.hat && look.hat !== "none") parts.push(`${colorWord(look.hatColor)} ${look.hat}`);
+  const outfit = look.outfit ?? look.coatKind ?? "coat";
+  const parts = [];
+  if (look.age && look.age !== "adult") parts.push(look.age === "elder" ? "elderly" : look.age);
+  parts.push(`${coatName(look.coat)} ${OUTFIT_WORD[outfit] ?? outfit}`);
+  if (look.hat && look.hat !== "none") parts.push(`${look.hat === "helmet" || look.hat === "hardhat" ? "" : colorWord(look.hatColor) + " "}${look.hat === "hardhat" ? "yellow hard hat" : look.hat}`.trim());
   const hair = nameOf(HAIR, look.hair);
-  if (hair) parts.push(`${look.hat && look.hat !== "none" ? "short " : ""}${hair} hair`);
+  const showsHair = !look.hat || look.hat === "none" || look.hat === "cap";
+  const style = showsHair ? look.hairStyle ?? "short" : "short";
+  if (hair) parts.push(style === "bald" ? "bald" : style === "buzz" ? `buzz-cut ${hair} hair` : `${showsHair ? "" : "short "}${style === "short" ? "" : style + " "}${hair} hair`.replace(/\s+/g, " "));
   if (look.facial && look.facial !== "none") parts.push(look.facial);
+  if (look.glasses) parts.push("glasses");
+  if (look.backpack) parts.push("backpack");
   if (look.build) parts.push(look.build);
   return parts.join(", ");
 }
@@ -182,13 +219,28 @@ export function normalizeLook(raw) {
   if (!hair) errors.push("hair must be one of the listed hair colours");
   if (!coat) errors.push("coat must be one of the listed coat colours");
   const enumOf = (key, list) => { if (!list.includes(r[key])) errors.push(`${key} must be one of ${list.join(", ")}`); };
-  enumOf("hat", HATS); enumOf("facial", FACIAL); enumOf("coatKind", COAT_KINDS); enumOf("build", BUILDS);
+  enumOf("hat", HATS); enumOf("facial", FACIAL); enumOf("build", BUILDS);
+  // outfit is new; coatKind stays valid for old looks and is the fallback when outfit is missing.
+  if (r.outfit != null && !OUTFITS.includes(r.outfit)) errors.push(`outfit must be one of ${OUTFITS.join(", ")}`);
+  if (r.outfit == null) enumOf("coatKind", COAT_KINDS);
+  else if (r.coatKind != null && !COAT_KINDS.includes(r.coatKind)) errors.push(`coatKind must be one of ${COAT_KINDS.join(", ")}`);
+  if (r.hairStyle != null && !HAIR_STYLES.includes(r.hairStyle)) errors.push(`hairStyle must be one of ${HAIR_STYLES.join(", ")}`);
+  if (r.age != null && !AGES.includes(r.age)) errors.push(`age must be one of ${AGES.join(", ")}`);
+  for (const k of ["glasses", "backpack"]) if (r[k] != null && typeof r[k] !== "boolean") errors.push(`${k} must be true or false`);
   const look = { skin: skin?.hex, hair: hair?.hex, coat: coat?.coat };
   for (const k of OPT_COLORS) {
     if (r[k] != null && !HEX.test(r[k])) errors.push(`${k} must be a #RRGGBB colour`);
     look[k] = HEX.test(r[k] ?? "") ? r[k] : coat?.[k];
   }
-  Object.assign(look, { coatKind: r.coatKind, hat: r.hat, facial: r.facial, build: r.build });
+  const outfit = OUTFITS.includes(r.outfit) ? r.outfit : COAT_KINDS.includes(r.coatKind) ? r.coatKind : "jacket";
+  Object.assign(look, {
+    outfit,
+    coatKind: COAT_KINDS.includes(outfit) ? outfit : COAT_KINDS.includes(r.coatKind) ? r.coatKind : "jacket",
+    hat: r.hat, facial: r.facial, build: r.build,
+    hairStyle: HAIR_STYLES.includes(r.hairStyle) ? r.hairStyle : "short",
+    age: AGES.includes(r.age) ? r.age : "adult",
+    glasses: r.glasses === true, backpack: r.backpack === true,
+  });
   return { look, errors };
 }
 
@@ -218,6 +270,6 @@ export function normalizeCast(raw, safety = () => []) {
 
 // Everything the UI needs to build the Cast screen.
 export const castData = () => ({
-  skin: SKIN, hair: HAIR, coats: COATS, hats: HATS, facial: FACIAL, coatKinds: COAT_KINDS, builds: BUILDS, names: NAMES,
+  skin: SKIN, hair: HAIR, coats: COATS, hats: HATS, facial: FACIAL, coatKinds: COAT_KINDS, outfits: OUTFITS, hairStyles: HAIR_STYLES, ages: AGES, builds: BUILDS, names: NAMES,
   themes: THEME_LIST.map(({ id, label, swatch, sky, particles }) => ({ id, label, swatch, sky, particles })),
 });

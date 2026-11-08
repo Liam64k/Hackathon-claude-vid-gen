@@ -578,36 +578,83 @@ const hx = (v, fb = "#888888") => (HEX.test(String(v)) ? v : fb);
 const cap1 = (t) => (t ? t[0].toUpperCase() + t.slice(1) : "");
 const themeLabel = (id) => (!id || id === "auto" ? "Auto (fits the topic)" : OPT.cast?.themes?.find((t) => t.id === id)?.label ?? id);
 const coatName = (look) => OPT.cast?.coats?.find((c) => c.coat.toLowerCase() === String(look?.coat).toLowerCase())?.label?.toLowerCase() ?? "custom";
-const castDesc = (m) => `${m.name} (${coatName(m.look)} ${m.look.coatKind ?? "coat"}${m.look.hat && m.look.hat !== "none" ? `, ${m.look.hat}` : ""})`;
+const castDesc = (m) => `${m.name} (${coatName(m.look)} ${OUTFIT_LABEL[m.look.outfit ?? m.look.coatKind]?.toLowerCase() ?? m.look.outfit ?? m.look.coatKind ?? "coat"}${m.look.hat && m.look.hat !== "none" ? `, ${m.look.hat}` : ""})`;
+const OUTFIT_LABEL = { tshirt: "T-shirt", hivis: "Hi-vis vest", hoodie: "Hoodie", suit: "Suit and tie", puffy: "Puffy coat", parka: "Parka", jacket: "Jacket", scrubs: "Scrubs", uniform: "Uniform", apron: "Apron", dress: "Dress" };
 const castNames = (c) => `${c.lead.name} & ${c.second.name}`;
 const randSeed = () => Math.random().toString(36).slice(2, 10);
 
 // Inline SVG figure for the Cast cards. All colours are validated hex; nothing user-typed reaches the markup.
+const sh = (hex, a) => { const n = parseInt(hex.slice(1), 16); const k = 1 - a; return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, "0")).join("")}`; };
+const WINTER_KINDS = ["puffy", "parka", "jacket"];
 function figureSvg(look) {
   const L = look ?? {};
   const skin = hx(L.skin, "#e8b894"), hair = hx(L.hair, "#3b2a20"), coat = hx(L.coat, "#c0392b"), trim = hx(L.trim, "#f2efe6");
-  const pants = hx(L.pants, "#34495e"), boots = hx(L.boots, "#2b2b2b"), gloves = hx(L.gloves, "#2b2b2b");
+  let pants = hx(L.pants, "#34495e"), boots = hx(L.boots, "#2b2b2b"), gloves = hx(L.gloves, "#2b2b2b");
   const hatColor = hx(L.hatColor, coat), hatBand = hx(L.hatBand, trim);
   const B = { short: [1, 0.86], average: [1, 1], tall: [0.9, 1.1], broad: [1.28, 1] }[L.build] ?? [1, 1];
-  const kind = L.coatKind ?? "puffy", hat = L.hat ?? "none", facial = L.facial ?? "none";
-  const body = kind === "puffy"
-    ? `<rect x="36" y="64" width="48" height="52" rx="16" fill="${coat}"/><path d="M37 82h46M37 98h46" stroke="${trim}" stroke-opacity=".35" stroke-width="2"/>`
-    : kind === "parka"
-      ? `<path d="M36 66q24-8 48 0l4 60H32z" fill="${coat}"/><path d="M60 66v60" stroke="${trim}" stroke-opacity=".5" stroke-width="2"/><ellipse cx="60" cy="68" rx="20" ry="7" fill="${trim}"/>`
-      : `<path d="M38 66q22-6 44 0l2 46H36z" fill="${coat}"/><path d="M60 68v44" stroke="${trim}" stroke-width="2"/><rect x="36" y="108" width="48" height="4" fill="${trim}"/>`;
+  const age = L.age ?? "adult";
+  const AS = { kid: 0.66, teen: 0.88, adult: 1, elder: 0.96 }[age] ?? 1;
+  const kind = L.outfit ?? L.coatKind ?? "jacket", hat = L.hat ?? "none";
+  const facial = age === "kid" ? "none" : L.facial ?? "none";
+  const winter = WINTER_KINDS.includes(kind);
+  const shortSl = ["tshirt", "scrubs", "dress"].includes(kind);
+  const HV = "#F58A1F";
+  if (kind === "scrubs" || kind === "suit" || kind === "uniform") pants = coat;
+  if (kind === "dress") pants = skin;
+  const handC = winter ? gloves : skin;
+  const sleeveC = kind === "apron" ? trim : coat;
+  const neckU = `<path d="M51 65q9 11 18 0z" fill="${skin}"/>`;
+  const bodies = {
+    puffy: `<rect x="36" y="64" width="48" height="52" rx="16" fill="${coat}"/><path d="M37 82h46M37 98h46" stroke="${trim}" stroke-opacity=".35" stroke-width="2"/>`,
+    parka: `<path d="M36 66q24-8 48 0l4 60H32z" fill="${coat}"/><path d="M60 66v60" stroke="${trim}" stroke-opacity=".5" stroke-width="2"/><ellipse cx="60" cy="68" rx="20" ry="7" fill="${trim}"/>`,
+    jacket: `<path d="M38 66q22-6 44 0l2 46H36z" fill="${coat}"/><path d="M60 68v44" stroke="${trim}" stroke-width="2"/><rect x="36" y="108" width="48" height="4" fill="${trim}"/>`,
+    tshirt: `<path d="M38 66q22-6 44 0l2 48H36z" fill="${coat}"/>${neckU}<rect x="36" y="108" width="48" height="6" fill="${sh(coat, 0.2)}"/>`,
+    hoodie: `<path d="M38 66q22-6 44 0l2 48H36z" fill="${coat}"/><ellipse cx="60" cy="67" rx="15" ry="6" fill="${sh(coat, 0.15)}"/><path d="M45 100h30l3 14H42z" fill="${sh(coat, 0.15)}"/><path d="M55 70v14M65 70v12" stroke="${trim}" stroke-width="2"/>`,
+    scrubs: `<path d="M38 66q22-6 44 0l2 48H36z" fill="${coat}"/><path d="M50 65l10 16 10-16z" fill="${skin}"/><rect x="68" y="84" width="9" height="10" rx="2" fill="${sh(coat, 0.15)}" stroke="${trim}"/>`,
+    suit: `<path d="M38 66q22-6 44 0l2 48H36z" fill="${coat}"/><path d="M52 65l8 24 8-24z" fill="#f4f2ec"/><path d="M52 65l8 24-12 8zM68 65l-8 24 12 8z" fill="${sh(coat, 0.2)}"/><path d="M58 70h4l2 22-4 5-4-5z" fill="${trim}"/>`,
+    hivis: `<path d="M38 66q22-6 44 0l2 48H36z" fill="${coat}"/><path d="M38 68l14 0 8 13 8-13h14l2 46H36z" fill="${HV}"/><path d="M50 72v42M70 72v42M36 100h48" stroke="#e6ecef" stroke-width="4"/>`,
+    uniform: `<path d="M38 66q22-6 44 0l2 48H36z" fill="${coat}"/><path d="M54 65l6 14 6-14z" fill="#e8e6e0"/><rect x="36" y="100" width="48" height="5" fill="${sh(coat, 0.5)}"/><path d="M68 80l-5 1v6q5 4 10 0v-6z" fill="${trim}"/><rect x="38" y="66" width="10" height="4" fill="${trim}"/><rect x="72" y="66" width="10" height="4" fill="${trim}"/>`,
+    apron: `<path d="M38 66q22-6 44 0l2 48H36z" fill="${trim}"/>${neckU}<path d="M47 76h26l4 40H43z" fill="${coat}"/><path d="M47 76l4-10M73 76l-4-10" stroke="${coat}" stroke-width="3"/>`,
+    dress: `<path d="M42 66q18-5 36 0l14 56H28z" fill="${coat}"/>${neckU}<rect x="40" y="82" width="40" height="4" fill="${trim}"/><rect x="29" y="118" width="62" height="4" fill="${trim}"/>`,
+  };
+  const body = bodies[kind] ?? bodies.jacket;
+  const arms = shortSl
+    ? `<rect x="25" y="68" width="11" height="38" rx="5" fill="${skin}"/><rect x="84" y="68" width="11" height="38" rx="5" fill="${skin}"/><rect x="24" y="66" width="13" height="16" rx="6" fill="${sleeveC}"/><rect x="83" y="66" width="13" height="16" rx="6" fill="${sleeveC}"/>`
+    : `<rect x="24" y="68" width="13" height="40" rx="6" fill="${sleeveC}"/><rect x="83" y="68" width="13" height="40" rx="6" fill="${sleeveC}"/>`;
+  const style = hat === "none" || hat === "cap" ? L.hairStyle ?? "short" : "short";
+  const hairBehind = style === "long" ? `<rect x="40" y="34" width="9" height="40" rx="4" fill="${hair}"/><rect x="71" y="34" width="9" height="40" rx="4" fill="${hair}"/>` : "";
+  const hairTop = {
+    short: `<path d="M43 38q0-20 17-20t17 20q-17-8-34 0z" fill="${hair}"/>`,
+    long: `<path d="M42 44q0-26 18-26t18 26q-18-12-36 0z" fill="${hair}"/>`,
+    bun: `<path d="M43 38q0-20 17-20t17 20q-17-8-34 0z" fill="${hair}"/><circle cx="60" cy="13" r="7" fill="${hair}"/>`,
+    curly: `<g fill="${hair}"><circle cx="45" cy="30" r="8"/><circle cx="54" cy="22" r="8"/><circle cx="66" cy="22" r="8"/><circle cx="75" cy="30" r="8"/><circle cx="60" cy="27" r="9"/></g>`,
+    buzz: `<path d="M44 38q0-18 16-18t16 18q-16-6-32 0z" fill="${hair}" fill-opacity=".8"/>`,
+    bald: "",
+  };
   const hats = {
     beanie: `<path d="M42 40q0-24 18-24t18 24z" fill="${hatColor}"/><rect x="41" y="36" width="38" height="7" rx="3" fill="${hatBand}"/><circle cx="60" cy="14" r="4" fill="${hatBand}"/>`,
     trapper: `<path d="M42 40q0-24 18-24t18 24z" fill="${hatColor}"/><rect x="41" y="36" width="38" height="6" rx="3" fill="${hatBand}"/><rect x="38" y="40" width="7" height="20" rx="3" fill="${hatColor}"/><rect x="75" y="40" width="7" height="20" rx="3" fill="${hatColor}"/>`,
-    cap: `<path d="M43 38q0-20 17-20t17 20z" fill="${hatColor}"/><rect x="43" y="36" width="34" height="4" fill="${hatBand}"/><path d="M60 38h28q0 5-8 5H60z" fill="${hatColor}"/>`,
+    cap: `${style === "long" ? "" : ""}<path d="M43 38q0-20 17-20t17 20z" fill="${hatColor}"/><rect x="43" y="36" width="34" height="4" fill="${hatBand}"/><path d="M60 38h28q0 5-8 5H60z" fill="${hatColor}"/>`,
     hood: `<path d="M38 66q-6-22 4-38q18-14 36 0q10 16 4 38l-10-8q4-14-12-16q-16 2-12 16z" fill="${coat}"/><path d="M44 50q16-12 32 0" fill="none" stroke="${trim}" stroke-width="3"/>`,
-    none: `<path d="M43 38q0-20 17-20t17 20q-17-8-34 0z" fill="${hair}"/>`,
+    helmet: `<path d="M41 40q0-25 19-25t19 25z" fill="${hatColor}"/><rect x="41" y="31" width="38" height="4" fill="${hatBand}"/><path d="M50 22v6M60 20v8M70 22v6" stroke="${sh(hatColor, 0.45)}" stroke-width="3" stroke-linecap="round"/>`,
+    hardhat: `<path d="M43 38q0-22 17-22t17 22z" fill="#F5C21B"/><rect x="57" y="15" width="6" height="23" fill="#fad55a"/><rect x="38" y="36" width="44" height="5" rx="2.5" fill="#d9a90f"/>`,
+    none: hairTop[style] ?? hairTop.short,
   };
+  const hatLayer = hat === "cap" ? (style === "bald" || style === "buzz" ? hats.cap : hats.cap) : hats[hat] ?? hats.none;
   const face = facial === "beard" ? `<path d="M45 46q0 24 15 24t15-24q-8 12-15 12t-15-12z" fill="${hair}"/>`
     : facial === "stubble" ? `<path d="M46 50q0 18 14 18t14-18q-8 10-14 10t-14-10z" fill="${hair}" fill-opacity=".45"/>` : "";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" aria-hidden="true"><g transform="translate(60 150) scale(${B[0]} ${B[1]}) translate(-60 -150)">
-<rect x="43" y="114" width="14" height="30" rx="4" fill="${pants}"/><rect x="63" y="114" width="14" height="30" rx="4" fill="${pants}"/><rect x="40" y="140" width="19" height="10" rx="4" fill="${boots}"/><rect x="61" y="140" width="19" height="10" rx="4" fill="${boots}"/>
-<rect x="24" y="68" width="13" height="40" rx="6" fill="${coat}"/><rect x="83" y="68" width="13" height="40" rx="6" fill="${coat}"/><circle cx="30" cy="110" r="6" fill="${gloves}"/><circle cx="90" cy="110" r="6" fill="${gloves}"/>
-${body}<circle cx="60" cy="48" r="17" fill="${skin}"/><circle cx="54" cy="47" r="1.8" fill="#2b2230"/><circle cx="66" cy="47" r="1.8" fill="#2b2230"/>${face}${hats[hat] ?? hats.none}</g></svg>`;
+  const glasses = L.glasses ? `<g fill="#bfe6ff" fill-opacity=".35" stroke="#2b2230" stroke-width="1.4"><circle cx="53.5" cy="47" r="5"/><circle cx="66.5" cy="47" r="5"/><path d="M58.5 47h3" fill="none"/></g>` : "";
+  const wrinkles = age === "elder" ? `<path d="M49 53q4 2 8 0M63 53q4 2 8 0M52 36q8-2 16 0" fill="none" stroke="${sh(skin, 0.4)}" stroke-width="1"/>` : "";
+  const pack = L.backpack ? `<rect x="30" y="66" width="60" height="42" rx="12" fill="${sh(hatColor, 0.1)}"/>` : "";
+  const straps = L.backpack ? `<path d="M48 66v38M72 66v38" stroke="${sh(hatColor, 0.35)}" stroke-width="4"/>` : "";
+  const lowShoe = ["dress", "tshirt", "scrubs"].includes(kind);
+  const bootEls = `<rect x="40" y="${lowShoe ? 144 : 140}" width="19" height="${lowShoe ? 6 : 10}" rx="3" fill="${boots}"/><rect x="61" y="${lowShoe ? 144 : 140}" width="19" height="${lowShoe ? 6 : 10}" rx="3" fill="${boots}"/>`;
+  const stoop = age === "elder" ? "rotate(3 60 150)" : "";
+  const headPop = age === "kid" ? "translate(60 62) scale(1.28) translate(-60 -62)" : age === "teen" ? "translate(60 62) scale(1.08) translate(-60 -62)" : "";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" aria-hidden="true"><g transform="translate(60 150) scale(${B[0] * (age === "kid" ? 1 : AS)} ${B[1] * AS}) translate(-60 -150) ${stoop}">
+${pack}<rect x="43" y="114" width="14" height="30" rx="4" fill="${pants}"/><rect x="63" y="114" width="14" height="30" rx="4" fill="${pants}"/>${bootEls}
+${arms}<circle cx="30" cy="110" r="6" fill="${handC}"/><circle cx="90" cy="110" r="6" fill="${handC}"/>
+${body}${straps}<g transform="${headPop}">${hairBehind}<circle cx="60" cy="48" r="17" fill="${skin}"/><circle cx="54" cy="47" r="1.8" fill="#2b2230"/><circle cx="66" cy="47" r="1.8" fill="#2b2230"/>${face}${wrinkles}${glasses}${hatLayer}</g></g></svg>`;
   return svgNode(svg);
 }
 
@@ -749,9 +796,14 @@ function homeView() {
         groups.push(() => btns.forEach((b, i) => b.setAttribute("aria-pressed", String(same(list[i], cur().look)))));
         return h("div.crow", { role: "group", "aria-label": `${title} ${label.toLowerCase()}` }, h("span.clbl", {}, label), h("div.cvals", {}, btns));
       };
-      const chipRow = (label, list, key) => {
-        const btns = list.map((v) => h("button.cchip", { type: "button", onclick: () => edit((m) => { m.look[key] = v; }) }, cap1(v)));
-        groups.push(() => btns.forEach((b, i) => b.setAttribute("aria-pressed", String(cur().look[key] === list[i]))));
+      const chipRow = (label, list, key, labels = {}, dflt) => {
+        const btns = list.map((v) => h("button.cchip", { type: "button", onclick: () => edit((m) => { m.look[key] = v; if (key === "outfit") m.look.coatKind = WINTER_KINDS.includes(v) ? v : "jacket"; }) }, labels[v] ?? cap1(v)));
+        groups.push(() => btns.forEach((b, i) => b.setAttribute("aria-pressed", String((cur().look[key] ?? (key === "outfit" ? cur().look.coatKind : null) ?? dflt) === list[i]))));
+        return h("div.crow", { role: "group", "aria-label": `${title} ${label.toLowerCase()}` }, h("span.clbl", {}, label), h("div.cvals", {}, btns));
+      };
+      const toggleRow = (label, items) => {
+        const btns = items.map(([key, text]) => h("button.cchip", { type: "button", onclick: () => edit((m) => { m.look[key] = !m.look[key]; }) }, text));
+        groups.push(() => btns.forEach((b, i) => b.setAttribute("aria-pressed", String(!!cur().look[items[i][0]]))));
         return h("div.crow", { role: "group", "aria-label": `${title} ${label.toLowerCase()}` }, h("span.clbl", {}, label), h("div.cvals", {}, btns));
       };
       const rand = once(async () => { try { S.ui.cast[which] = await randomMember(which); setMode("random"); paint(); } catch (e) { toast(e.message, true); } });
@@ -762,7 +814,9 @@ function homeView() {
           swRow("Skin", CD.skin, "skin", null, (o, l) => String(l.skin).toLowerCase() === o.hex.toLowerCase()),
           swRow("Hair", CD.hair, "hair", null, (o, l) => String(l.hair).toLowerCase() === o.hex.toLowerCase()),
           swRow("Coat", CD.coats, "coat", null, (o, l) => String(l.coat).toLowerCase() === o.coat.toLowerCase()),
-          chipRow("Hat", CD.hats, "hat"), chipRow("Facial hair", CD.facial, "facial"), chipRow("Coat type", CD.coatKinds, "coatKind"), chipRow("Build", CD.builds, "build"))));
+          chipRow("Outfit", CD.outfits ?? CD.coatKinds, "outfit", OUTFIT_LABEL, "jacket"), chipRow("Age", CD.ages ?? [], "age", {}, "adult"), chipRow("Hair style", CD.hairStyles ?? [], "hairStyle", {}, "short"),
+          chipRow("Hat", CD.hats, "hat"), chipRow("Facial hair", CD.facial, "facial"), chipRow("Build", CD.builds, "build"),
+          toggleRow("Extras", [["glasses", "Glasses"], ["backpack", "Backpack"]]))));
       const paint = () => { if (document.activeElement !== nameIn) nameIn.value = cur().name; if (document.activeElement !== roleIn) roleIn.value = cur().role ?? ""; mount(fig, figureSvg(cur().look)); groups.forEach((g) => g()); };
       cards.push(paint);
       onSync(paint);

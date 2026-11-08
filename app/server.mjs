@@ -261,6 +261,7 @@ const claudeCast = async (slug) => {
   store.update(slug, (x) => {
     const keepTheme = x.cast?.theme && x.cast.theme !== "auto" && x.castMode !== "claude";
     x.cast = { ...cast, ...(keepTheme ? { theme: x.cast.theme, particles: x.cast.particles } : {}) };
+    x.castByClaude = !fallback; // own-script projects recast on script approval until Claude has cast once
   });
   syncCast(slug);
   bus.send("activity", { slug, stage: "script", text: `Cast: ${cast.lead.name} and ${cast.second.name}${why ? ` (${why})` : ""}`, tool: "cast" });
@@ -294,7 +295,8 @@ const approve = async (slug, stage, body) => {
   const startNext = () => { try { startStage(slug, next, {}); } catch (e) { bus.send("error", { slug, stage: next, code: "start", message: e.message }); } };
   if (next && body.next !== false) {
     // castMode "claude": cast first so the script uses the names, but never block the pipeline on it
-    if (stage === "ideas" && s.castMode === "claude" && s.cast) {
+    const ownNeedsCast = stage === "script" && s.entry === "own" && !s.castByClaude;
+    if ((stage === "ideas" || ownNeedsCast) && s.castMode === "claude" && s.cast) {
       claudeCast(slug).catch((e) => bus.send("activity", { slug, stage: "script", text: `Casting skipped (${e.message}); keeping the current cast.`, level: "warn" })).finally(startNext);
     } else startNext();
   }

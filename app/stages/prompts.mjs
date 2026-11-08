@@ -29,7 +29,7 @@ export const PACK_BRIEF = `HOW STORY AND ART FIT TOGETHER: write the story the T
 The drawings come from an ART PACK of PLACES (no new art can be drawn); pick the places that fit the topic, and an episode may mix 2-3 of them. Stamps, tags, deltas, callouts and diagrams carry the countdowns, supplies and rules. Never claim art that does not exist; note in "risk" which places show the topic.
 - City places: "city" (a busy plaza with a crowd and billboards), "street" (a brick street with a fallout-shelter sign), "crossroad" (an outdoor intersection), "bunker" (a basement/shelter interior), "fallout" (an ash-grey outdoor aftermath). Use city/street/crossroad for outbreaks, blackouts, crowds and evacuations; bunker for shelter, nuclear and storm stories; fallout for the aftermath.
 - Lake places, ONLY for ice, winter or cold-water topics: "lakeSide" (pine shore, shacks), "lakeCut" (ice cross-section, ruler, water), "lakeTop" (map view with routes), "lakePrint" (footprint close-up); plus "black". Times of day: sunset, blue hour, night.
-- Two adult figure puppets, "the lead" and "the second" (clothes, names and relationship are set per episode). One figure alone is fine. Poses: walking, running, standing, lying, rolling, panic, a red dashed "mistake" ghost (plus in-water poses for cold-water stories).
+- Two figure puppets, "the lead" and "the second" (age, job, outfit, names and relationship are set per episode by the CAST). One figure alone is fine. Poses: walking, running, standing, lying, rolling, panic, a red dashed "mistake" ghost (plus in-water poses for cold-water stories).
 - Story devices that take ANY text, so they carry non-winter stories: callouts with arrows, stamps ("STEP 1", "RULE #2"), tags, delta pops ("+2 L", "-1 DAY"), ticks, speech/thought bubbles, a swatch chip with custom text; plus a freeze-frame "paused" look, white flash, whip-zoom, shake, snow.
 - Fixed-text pieces, winter and cold-water stories only: the HUD pills (a "DEC" clock, ICE cm, WATER 0 °C, IN WATER / OUT timers, the 1-10-1 phase strip, a "<NAME> n M" distance pill) and the title, ice-ladder, 1-10-1, 911 and "PART 2" cards. Other topics show countdowns, supplies and rules with stamps, tags, deltas and callouts instead.`;
 
@@ -138,8 +138,8 @@ const THEME_PLACE = {
 export const castText = (p) => {
   const c = p?.cast;
   if (!c?.lead) return "";
-  const who = (k, r) => c[k] ? `${r} = ${c[k].name}${c[k].role ? `, ${c[k].role}` : ""} (${describeLook(c[k].look)})` : "";
-  return `CAST (fixed for this episode; use these names, not new ones): ${[who("lead", "the lead, figure id \"eli\""), who("second", "the second, figure id \"brother\"")].filter(Boolean).join("; ")}.`;
+  const who = (k, r) => c[k] ? `${r} = ${c[k].name}${c[k].role ? `, ${c[k].role}` : ""}${c[k].look?.age ? ` [${c[k].look.age}]` : ""} (${describeLook(c[k].look)})` : "";
+  return `CAST (fixed for this episode; use these names, ages and jobs, not new ones): ${[who("lead", "the lead, figure id \"eli\""), who("second", "the second, figure id \"brother\"")].filter(Boolean).join("; ")}. Give each poses and actions that suit their age and job (a kid runs and hides, an elder walks or sits); the rig already sizes kids and teens, so never scale figures for age.`;
 };
 // "auto" place looks are worked out from the topic (same rule as lib/castfile.mjs).
 export const placeText = (p) => {
