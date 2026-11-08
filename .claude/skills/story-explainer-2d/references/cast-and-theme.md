@@ -1,12 +1,14 @@
 # Cast and theme (per episode)
 
-The Winter Lake art has two puppets: figure id `eli` = **the lead**, `brother` = **the second**.
+The art pack has two puppets: figure id `eli` = **the lead**, `brother` = **the second**.
 The ids are code names only. Each project stores `state.cast` = `{lead:{name,look}, second:{name,look}, theme, particles}`.
 
 - Names: always use the cast names in narration, callouts and stamps. Never call anyone "Eli" or "his brother".
 - Look: clothes/hair/hat come from the cast (`describeLook`), not a fixed orange jacket.
 - Theme recolours the same scenes (winter, summer, nightCity, wildfire, storm, fallout, blackout, desert);
   write the place to match (e.g. nightCity: open ground = city square, shacks = kiosks, pines = skyline).
+- Places: pick scenes for the topic (city/street/crossroad for outbreaks, blackouts, crowds; bunker for
+  shelter/nuclear/storm; fallout for aftermath; lake scenes only for ice). Mix 2-3 places; vary cast per video.
 - Keep each person on the same figure id in every shot; pick particles that fit the theme.
 - `cast: null` = legacy project: puppets are named per story.
 

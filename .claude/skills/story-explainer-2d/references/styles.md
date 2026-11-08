@@ -1,10 +1,10 @@
 # Looks (visual styles)
 
-Read only the section for the look the user chose. Scenes still use the Winter Lake pack unless an
+Read only the section for the look the user chose. Scenes still come from the art pack's places unless an
 art pack for that look exists; change captions, stamps, callouts, cards, HUD, accents, motion, SFX.
 
 ## Flat 2D
-- Palette: Winter Lake pack as-is; accents #2F80ED blue, #F2C94C amber, #EB5757 danger, ink #1B2430.
+- Palette: art pack as-is; accents #2F80ED blue, #F2C94C amber, #EB5757 danger, ink #1B2430.
 - Shapes: clean vector fills, no outlines, soft drop shadows, rounded corners 16-24px.
 - Motion: smooth ease-out 8-12 frames in, gentle spring settle; camera drifts slowly.
 - Captions: system/Inter 700, white with dark pill backdrop, active word in amber.

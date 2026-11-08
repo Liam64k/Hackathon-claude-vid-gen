@@ -10,6 +10,8 @@ import { readJson, writeJson } from "./store.mjs";
 const CAST_JSON = path.join(SRC, "cast.json"); // per-episode cast / theme / particles (null = defaults)
 const OWNER_FILE = path.join(RUNTIME, "workspace.json");
 export const EXAMPLE_BUILD = path.join(EXAMPLE_DIR, "build");
+// New projects start from a neutral multi-place template, not the lake example episode.
+export const SHOTS_TEMPLATE = path.join(SRC, "..", "templates", "shots-template.ts");
 const voiceClips = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => /^line-\d+\.mp3$/.test(f)) : []);
 
 export const owner = () => readJson(OWNER_FILE, { owner: null }).owner;
@@ -46,12 +48,12 @@ export const saveCurrent = () => {
 };
 
 // Make `slug` the project that src/ and public/voice/ belong to. A project with no build yet starts
-// from the example's shots.ts (the template the shots stage edits), with no voice.
+// from templates/shots-template.ts (the template the shots stage edits), with no voice.
 export const checkout = (slug) => {
   if (owner() === slug) return false;
   saveCurrent();
   const dir = existsSync(path.join(buildDir(slug), "shots.ts")) ? buildDir(slug) : null;
-  copyFileSync(dir ? path.join(dir, "shots.ts") : path.join(EXAMPLE_BUILD, "shots.ts"), SHOTS_TS);
+  copyFileSync(dir ? path.join(dir, "shots.ts") : existsSync(SHOTS_TEMPLATE) ? SHOTS_TEMPLATE : path.join(EXAMPLE_BUILD, "shots.ts"), SHOTS_TS);
   const audio = dir && existsSync(path.join(dir, "audio.json")) ? readFileSync(path.join(dir, "audio.json")) : JSON.stringify({ voice: {}, sfx: {} }, null, 2) + "\n";
   writeFileSync(AUDIO_JSON, audio);
   writeFileSync(EDITS_JSON, dir && existsSync(path.join(dir, "edits.json")) ? readFileSync(path.join(dir, "edits.json")) : "null\n");

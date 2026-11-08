@@ -4,6 +4,10 @@ import { CamContext, cameraTransform, shakeAt } from "./camera";
 import { Lake } from "./art/Lake";
 import { LakePrint, LakeTop } from "./art/LakeTop";
 import { FigureEl, GhostDefs } from "./art/Figures";
+import { TimesSquare } from "./art/TimesSquare";
+import { Street44 } from "./art/Street44";
+import { Basement } from "./art/Basement";
+import { Cross, Fallout } from "./art/Outside";
 import { ladder, mix, palette } from "./art/color";
 import { castTheme } from "./cast";
 import type { Rim } from "./art/Rig";
@@ -51,6 +55,13 @@ export const Episode = () => {
   const ghosts = figures.filter((f) => f.ghost);
   const props = s.props ?? {};
   const inLake = s.scene === "lakeSide" || s.scene === "lakeCut";
+  const isCity = s.scene === "city" || s.scene === "street" || s.scene === "bunker" || s.scene === "crossroad" || s.scene === "fallout";
+  const num = (k: string, d: number) => (typeof props[k] === "number" ? (props[k] as number) : d);
+  const flag = (k: string) => !!props[k];
+  // Night wash for the city worlds (they keep their own colours); fallout is already dark/orange.
+  const wash = s.scene === "fallout" ? 0.25 : s.scene === "bunker" ? 0.1 : 0.62;
+  const nightA = Math.min(1, Math.max(0, world.dusk)) * wash;
+  const sorted = [...figures].filter((f) => !f.ghost).sort((a, b) => a.y - b.y);
 
   return (
     <AbsoluteFill style={{ background: "#0b0d12" }}>
@@ -69,12 +80,29 @@ export const Episode = () => {
             <CamContext.Provider value={{ cam, home: { x: s.from.x, y: s.from.y } }}>
               <g transform={cameraTransform(cam, dx, dy)}>
                 {inLake && <Lake frame={frame} local={local} len={s.len} world={world} figures={figures} props={props} rim={rim} />}
+                {isCity && (
+                  <>
+                    {s.scene === "city" && <TimesSquare frame={frame} alert={flag("alert")} cast={[]} crowd={num("crowd", 14)} mood={flag("laugh") ? "laugh" : "calm"} />}
+                    {s.scene === "street" && <Street44 frame={frame} cast={[]} panic={flag("panic")} />}
+                    {s.scene === "bunker" && (
+                      <Basement frame={frame} cast={[]} cans={num("cans", 38)} counted={num("counted", 0)} bulb={props.bulb !== 0 && props.bulb !== false} candles={num("candles", 0)} doorShake={num("doorShake", 0)} wrapper={flag("wrapper")} dustCoat={flag("dustCoat")} radioOn={flag("radio")} />
+                    )}
+                    {s.scene === "crossroad" && <Cross frame={frame} burst={num("burst", 0)} cast={[]} after={flag("after")} />}
+                    {s.scene === "fallout" && <Fallout frame={frame} cast={[]} />}
+                    {nightA > 0.01 && <rect x={-3000} y={-3000} width={9000} height={9000} fill={theme === "winter" ? "#0b1230" : mix(palette(1, theme).skyTop, "#000000", 0.4)} opacity={nightA} />}
+                    {sorted.map((f, i) => (
+                      <g key={i}>
+                        <FigureEl f={f} frame={frame} local={local} len={s.len} id={`c${i}`} rim={rim} />
+                      </g>
+                    ))}
+                  </>
+                )}
                 {s.scene === "lakeTop" && <LakeTop frame={frame} local={local} len={s.len} world={world} props={props} />}
                 {s.scene === "lakePrint" && <LakePrint frame={frame} local={local} len={s.len} world={world} props={props} />}
               </g>
             </CamContext.Provider>
           </g>
-          {ghosts.length > 0 && inLake && (
+          {ghosts.length > 0 && (inLake || isCity) && (
             <g transform={cameraTransform(cam, dx, dy)}>
               {ghosts.map((f, i) => (
                 <FigureEl key={i} f={f} local={local} len={s.len} id={`g${i}`} />

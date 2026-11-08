@@ -18,7 +18,7 @@ export interface Actor {
 // ---- scenes ---------------------------------------------------------------------------------
 // lakeSide + lakeCut are the SAME world component (the cross-section sits directly under the side
 // view's ice line); lakeTop is the plan view; lakePrint is the close-up boot-print plate.
-export type SceneId = "lakeSide" | "lakeCut" | "lakeTop" | "lakePrint" | "black";
+export type SceneId = "lakeSide" | "lakeCut" | "lakeTop" | "lakePrint" | "city" | "street" | "bunker" | "crossroad" | "fallout" | "black";
 export type LightMode = "dusk" | "freeze" | "bluehour" | "night";
 export type HeroId = "eli" | "brother";
 

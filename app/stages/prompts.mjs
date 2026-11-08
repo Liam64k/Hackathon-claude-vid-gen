@@ -22,12 +22,13 @@ export const SYSTEM = [
 
 export const packCatalog = () => readFileSync(path.join(APP, "pack-catalog.json"), "utf8");
 
-// What the Winter Lake pack can show. The STORY comes from the topic; the pack only supplies the drawings,
-// so this brief leads with "write the topic's story" and treats the lake as a set to borrow, never as the
-// setting. (Earlier versions led with the lake, and every idea ended up being someone on the ice.)
+// What the art pack can show: a set of places (lake AND city/street/bunker/crossroad/fallout). The STORY
+// comes from the topic; scenes are picked to fit it. (Earlier versions led with the lake, and every idea
+// ended up being someone on the ice.)
 export const PACK_BRIEF = `HOW STORY AND ART FIT TOGETHER: write the story the TOPIC asks for (any safe survival, disaster or preparedness scenario: nuclear war and fallout shelters, a zombie outbreak told as fiction that teaches real preparedness, blackouts, floods, wildfires, storms, heat, getting lost, winter and cold water). Its setting, characters and names come from the topic, never from the art. Only winter and cold-water topics are set on ice.
-The drawings come from one fixed ART PACK, "Winter Lake" (no new art can be drawn). Later stages borrow it as a stage set: the red shack becomes a shelter, bunker or house; the shore and pines become a street edge or a horizon; the night sky becomes a blackout; stamps, tags, deltas, callouts and diagrams carry the countdowns, supplies and rules. Never claim art that does not exist, and note in "risk" how the topic will be shown with this set.
-- Views: a SIDE view (pine shore, three small shacks, a red shack, a trail of footprints, open flat ground), a CUT cross-section (layers, a ruler, moving water), a TOP map view (shore, paths, buildings, arrows, a route) and a footprint close-up. Times of day: sunset, blue hour, night.
+The drawings come from an ART PACK of PLACES (no new art can be drawn); pick the places that fit the topic, and an episode may mix 2-3 of them. Stamps, tags, deltas, callouts and diagrams carry the countdowns, supplies and rules. Never claim art that does not exist; note in "risk" which places show the topic.
+- City places: "city" (a busy plaza with a crowd and billboards), "street" (a brick street with a fallout-shelter sign), "crossroad" (an outdoor intersection), "bunker" (a basement/shelter interior), "fallout" (an ash-grey outdoor aftermath). Use city/street/crossroad for outbreaks, blackouts, crowds and evacuations; bunker for shelter, nuclear and storm stories; fallout for the aftermath.
+- Lake places, ONLY for ice, winter or cold-water topics: "lakeSide" (pine shore, shacks), "lakeCut" (ice cross-section, ruler, water), "lakeTop" (map view with routes), "lakePrint" (footprint close-up); plus "black". Times of day: sunset, blue hour, night.
 - Two adult figure puppets, "the lead" and "the second" (clothes, names and relationship are set per episode). One figure alone is fine. Poses: walking, running, standing, lying, rolling, panic, a red dashed "mistake" ghost (plus in-water poses for cold-water stories).
 - Story devices that take ANY text, so they carry non-winter stories: callouts with arrows, stamps ("STEP 1", "RULE #2"), tags, delta pops ("+2 L", "-1 DAY"), ticks, speech/thought bubbles, a swatch chip with custom text; plus a freeze-frame "paused" look, white flash, whip-zoom, shake, snow.
 - Fixed-text pieces, winter and cold-water stories only: the HUD pills (a "DEC" clock, ICE cm, WATER 0 °C, IN WATER / OUT timers, the 1-10-1 phase strip, a "<NAME> n M" distance pill) and the title, ice-ladder, 1-10-1, 911 and "PART 2" cards. Other topics show countdowns, supplies and rules with stamps, tags, deltas and callouts instead.`;
@@ -116,8 +117,8 @@ export const formatText = (f) => FORMATS[f] ?? FORMATS.story;
 // The project's visual style. Style sections live in the styles.md reference; flat needs no file read.
 export const styleText = (style) => {
   const st = STYLES[style] ?? STYLES.flat;
-  if (!STYLES[style] || style === "flat") return "Look: Flat 2D, the Winter Lake pack as drawn; no style file to read.";
-  return `Look: ${st.name}. Read only the "## ${st.name}" section of .claude/skills/story-explainer-2d/references/styles.md and apply it to tone, captions, stamps and colours (scenes still use the Winter Lake pack).`;
+  if (!STYLES[style] || style === "flat") return "Look: Flat 2D, the art pack as drawn; no style file to read.";
+  return `Look: ${st.name}. Read only the "## ${st.name}" section of .claude/skills/story-explainer-2d/references/styles.md and apply it to tone, captions, stamps and colours (scenes still come from the art pack).`;
 };
 // Output size note for the shots stage (only when not 9:16).
 export const outputText = (o) =>
@@ -125,7 +126,7 @@ export const outputText = (o) =>
 
 // Per-episode cast + theme (state.cast; null = legacy, no text). Ids stay "eli"/"brother" in shots.ts.
 const THEME_PLACE = {
-  winter: ["Winter dusk", "a frozen lake shore at dusk; shacks are huts; snow"],
+  winter: ["Winter dusk", "a snowy shore or town at dusk; snow"],
   summer: ["Summer evening", "a green lakeside or park in summer; the flat ground is grass or water; shacks are cabins"],
   nightCity: ["Night city", "the open ground reads as an empty city square at night; shacks are kiosks/houses; pines are the skyline edge"],
   wildfire: ["Wildfire haze", "a town edge under orange smoke; shacks are homes; pines are the burning ridge; ash"],
