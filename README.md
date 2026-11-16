@@ -87,6 +87,20 @@ custom size. Videos can be 20 to 180 seconds long.
 won't start a step that would run past your limit, and if a limit is reached mid-step it pauses and
 keeps your work.
 
+## Something not working?
+
+Run `npm run doctor` first. It shows a pass/fail table and the fix for each problem. The most common
+ones:
+
+| What you see | What to do |
+|---|---|
+| "Claude Code not installed" or "signed out" | Install Claude Code ([guide](https://docs.claude.com/en/docs/claude-code/setup)) and sign in with `claude auth login`, then reload Studio. |
+| "Open Studio from the terminal link" | Copy the link that starts with `Open:` from the terminal window into your browser. |
+| The port is already in use | Another Studio is probably running. Close it, or start this one on another port with `STUDIO_PORT=4400 npm start`. |
+| The video voice sounds robotic | No ElevenLabs key is set, so your computer's voice is used. Add a key on the Voice screen for a natural voice. |
+| A step stopped part-way | Your Claude plan limit was probably reached. The work is kept. Press *Resume* when your limit resets. |
+| A render failed | Studio shows the last lines of the log and a *Retry* button. |
+
 ## Good to know
 
 - **Art:** this version comes with one art pack, *Winter Lake* (a frozen lake and two characters).
